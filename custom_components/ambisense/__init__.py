@@ -203,8 +203,11 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
         except ValueError as err:
             _LOGGER.error("Error parsing settings JSON: %s", err)
             return None
-                
+                    
+    # Add this to the `__init__.py` file in the AmbiSenseDataUpdateCoordinator class:
+    
     async def async_update_settings(self, **kwargs):
+        """Update device settings with improved response handling."""
         _LOGGER.debug(f"Received settings update request: {kwargs}")
         
         # Comprehensive parameter mapping
@@ -252,6 +255,10 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.warning("No valid parameters to update")
             return False
         
+        # Explicitly log directional light changes
+        if 'directionalLight' in params:
+            _LOGGER.info(f"Setting directionalLight={params['directionalLight']}")
+    
         # Construct query string
         param_strings = [f"{k}={v}" for k, v in params.items()]
         url = f"http://{self.host}/set?{('&'.join(param_strings))}"
@@ -264,16 +271,28 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
                     response_text = await resp.text()
                     _LOGGER.debug(f"Device response: {response_text}")
                     
-                    # Parse JSON response if possible
+                    # Try to parse JSON response
                     try:
                         response_data = await resp.json()
-                        if response_data.get('status') == 'success':
+                        # Update our local data with the response data if available
+                        if 'settings' in response_data:
+                            # Map each setting back to our data structure
+                            settings_data = response_data['settings']
+                            if 'directionalLight' in settings_data:
+                                self.data['directionalLight'] = settings_data['directionalLight'] == True or settings_data['directionalLight'] == "true"
+                                _LOGGER.debug(f"Updated directionalLight from response: {self.data['directionalLight']}")
+                            
+                            # Trigger immediate data refresh
                             await self.async_refresh()
                             return True
+                        
                     except ValueError:
-                        # Fallback if JSON parsing fails
-                        await self.async_refresh()
-                        return True
+                        # If JSON parsing fails, just rely on our refresh
+                        pass
+                    
+                    # Immediate refresh to get updated state
+                    await self.async_refresh()
+                    return True
                 else:
                     _LOGGER.error(f"Failed to update settings. Status: {resp.status}")
                     return False
