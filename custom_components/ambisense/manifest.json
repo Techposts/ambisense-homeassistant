@@ -3,9 +3,11 @@
   "name": "AmbiSense",
   "config_flow": true,
   "documentation": "https://github.com/techposts/ambisense-homeassistant",
-  "dependencies": ["zeroconf"],
-  "requirements": ["zeroconf"],
+  "issue_tracker": "https://github.com/techposts/ambisense-homeassistant/issues",
+  "dependencies": [],
+  "requirements": ["zeroconf>=0.38.1"],
   "codeowners": ["@techposts"],
-  "version": "0.2.0",
-  "iot_class": "local_polling"
+  "version": "0.2.1",
+  "iot_class": "local_polling",
+  "zeroconf": ["_http._tcp.local."]
 }
