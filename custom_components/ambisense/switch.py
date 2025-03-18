@@ -1,5 +1,6 @@
 """AmbiSense switch platform for boolean settings."""
 import logging
+import asyncio
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -54,6 +55,36 @@ class AmbiSenseSwitchEntity(CoordinatorEntity, SwitchEntity):
             sw_version="3.1",
         )
 
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return self.coordinator.data is not None and self._key in self.coordinator.data
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if switch is on."""
+        if not self.coordinator.data:
+            return False
+        return bool(self.coordinator.data.get(self._key, False))
+
+    async def async_turn_on(self, **kwargs):
+        """Turn the switch on."""
+        param_mapping = {
+            "backgroundMode": "background_mode",
+            "directionalLight": "directional_light",
+        }
+        param_name = param_mapping.get(self._key, self._key)
+        await self.coordinator.async_update_settings(**{param_name: True})
+
+    async def async_turn_off(self, **kwargs):
+        """Turn the switch off."""
+        param_mapping = {
+            "backgroundMode": "background_mode",
+            "directionalLight": "directional_light",
+        }
+        param_name = param_mapping.get(self._key, self._key)
+        await self.coordinator.async_update_settings(**{param_name: False})
+
 class AmbiSenseDirectionalLightSwitch(AmbiSenseSwitchEntity):
     """Representation of the directional light switch."""
 
@@ -68,22 +99,17 @@ class AmbiSenseDirectionalLightSwitch(AmbiSenseSwitchEntity):
 
     @property
     def is_on(self) -> bool:
-        """Explicitly control the on/off state from coordinator data."""
-        if not self.coordinator.data:
-            _LOGGER.debug("No coordinator data available for directional light")
-            return False
-        
-        # Use explicit boolean conversion and logging
-        current_state = bool(self.coordinator.data.get('directionalLight', False))
-        _LOGGER.debug(f"Current Directional Light state: {current_state}")
+        """Return the current state of directional light."""
+        # Explicitly log the state for debugging
+        current_state = super().is_on
+        _LOGGER.debug(f"Directional Light current state: {current_state}")
         return current_state
 
     async def async_turn_on(self, **kwargs):
-        """Turn on the directional light with comprehensive logging."""
+        """Turn on the directional light with enhanced logging."""
         _LOGGER.debug("Attempting to turn ON Directional Light")
-        
-        # Force a specific state with explicit logging
         try:
+            # Explicitly use directional_light parameter
             result = await self.coordinator.async_update_settings(directional_light=True)
             _LOGGER.info(f"Directional Light ON request result: {result}")
             
@@ -93,11 +119,10 @@ class AmbiSenseDirectionalLightSwitch(AmbiSenseSwitchEntity):
             _LOGGER.error(f"Error turning on Directional Light: {e}")
 
     async def async_turn_off(self, **kwargs):
-        """Turn off the directional light with comprehensive logging."""
+        """Turn off the directional light with enhanced logging."""
         _LOGGER.debug("Attempting to turn OFF Directional Light")
-        
-        # Force a specific state with explicit logging
         try:
+            # Explicitly use directional_light parameter
             result = await self.coordinator.async_update_settings(directional_light=False)
             _LOGGER.info(f"Directional Light OFF request result: {result}")
             
