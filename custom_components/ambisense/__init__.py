@@ -203,77 +203,80 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
         except ValueError as err:
             _LOGGER.error("Error parsing settings JSON: %s", err)
             return None
-            
+                
     async def async_update_settings(self, **kwargs):
-        """Update settings on the device."""
-        _LOGGER.debug("Received settings update request: %s", kwargs)
+        _LOGGER.debug(f"Received settings update request: {kwargs}")
         
-        # Mapping of HA parameter names to device parameter names
-        mapping = {
-            "min_distance": "minDist",
-            "max_distance": "maxDist",
-            "brightness": "brightness",
-            "light_span": "lightSpan",
-            "num_leds": "numLeds",
-            "rgb_color": None,  # Special handling
-            
-            # New parameters
-            "center_shift": "centerShift", 
-            "trail_length": "trailLength", 
-            "effect_speed": "effectSpeed", 
-            "effect_intensity": "effectIntensity",
-            "background_mode": "backgroundMode",
-            "directional_light": "directionalLight", 
-            "light_mode": "lightMode"
+        # Comprehensive parameter mapping
+        param_map = {
+            'min_distance': 'minDist',
+            'max_distance': 'maxDist',
+            'brightness': 'brightness',
+            'light_span': 'lightSpan',
+            'num_leds': 'numLeds',
+            'center_shift': 'centerShift',
+            'trail_length': 'trailLength',
+            'effect_speed': 'effectSpeed',
+            'effect_intensity': 'effectIntensity',
+            'background_mode': 'backgroundMode',
+            'directional_light': 'directionalLight',
+            'light_mode': 'lightMode',
+            'rgb_color': None  # Special handling for RGB
         }
         
         # Prepare parameters for API
         params = {}
         
         # Special handling for RGB color
-        if "rgb_color" in kwargs:
-            r, g, b = kwargs["rgb_color"]
-            params["redValue"] = r
-            params["greenValue"] = g
-            params["blueValue"] = b
+        if 'rgb_color' in kwargs:
+            r, g, b = kwargs['rgb_color']
+            params['redValue'] = r
+            params['greenValue'] = g
+            params['blueValue'] = b
         
         # Process other parameters
-        for key, value in kwargs.items():
-            if key in mapping:
-                device_key = mapping[key]
+        for ha_param, device_param in param_map.items():
+            if ha_param in kwargs and device_param is not None:
+                value = kwargs[ha_param]
                 
-                # Skip if mapping is None (already handled or not applicable)
-                if device_key is None:
-                    continue
-                
-                # Convert boolean to 1/0 for parameters that need it
+                # Convert boolean to 1/0 for certain parameters
                 if isinstance(value, bool):
                     value = 1 if value else 0
                 
-                params[device_key] = value
+                params[device_param] = value
         
-        _LOGGER.debug("Mapped parameters for API: %s", params)
+        _LOGGER.debug(f"Mapped parameters for API: {params}")
         
         # Construct URL with parameters
         if not params:
             _LOGGER.warning("No valid parameters to update")
             return False
         
-        url = f"http://{self.host}/set"
+        # Construct query string
         param_strings = [f"{k}={v}" for k, v in params.items()]
-        url += "?" + "&".join(param_strings)
+        url = f"http://{self.host}/set?{('&'.join(param_strings))}"
         
-        _LOGGER.debug("Sending update request to: %s", url)
+        _LOGGER.debug(f"Sending update request to: {url}")
         
         try:
             async with self.session.get(url, timeout=5) as resp:
-                success = resp.status == 200
-                if success:
-                    _LOGGER.info("Successfully updated device settings")
-                    await self.async_refresh()
+                if resp.status == 200:
+                    response_text = await resp.text()
+                    _LOGGER.debug(f"Device response: {response_text}")
+                    
+                    # Parse JSON response if possible
+                    try:
+                        response_data = await resp.json()
+                        if response_data.get('status') == 'success':
+                            await self.async_refresh()
+                            return True
+                    except ValueError:
+                        # Fallback if JSON parsing fails
+                        await self.async_refresh()
+                        return True
                 else:
-                    _LOGGER.error("Failed to update settings. Status: %s", resp.status)
-                return success
+                    _LOGGER.error(f"Failed to update settings. Status: {resp.status}")
+                    return False
         except Exception as err:
-            _LOGGER.error("Error updating settings: %s", err)
+            _LOGGER.error(f"Error updating settings: {err}")
             return False
