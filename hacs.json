@@ -1,5 +1,5 @@
 {
   "name": "AmbiSense",
   "render_readme": true,
-  "icon": "https://raw.githubusercontent.com/Techposts/ambisense-homeassistant/main/icon.png"
+  "homeassistant": "2023.3.0"
 }
