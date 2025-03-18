@@ -1,6 +1,6 @@
 update_settings:
-  name: Update Settings
-  description: Update settings on the AmbiSense device.
+  name: Update AmbiSense Settings
+  description: Update various settings for the AmbiSense LED strip
   target:
     entity:
       domain: light
@@ -8,113 +8,125 @@ update_settings:
   fields:
     min_distance:
       name: Minimum Distance
-      description: Minimum detection distance (cm).
+      description: Minimum detection distance for the radar sensor
       example: 30
       selector:
         number:
           min: 0
           max: 200
           unit_of_measurement: cm
+
     max_distance:
       name: Maximum Distance
-      description: Maximum detection distance (cm).
+      description: Maximum detection distance for the radar sensor
       example: 300
       selector:
         number:
           min: 50
           max: 500
           unit_of_measurement: cm
+
     brightness:
       name: Brightness
-      description: LED brightness (0-255).
-      example: 255
+      description: Overall brightness of the LED strip
+      example: 150
       selector:
         number:
           min: 0
           max: 255
+
     light_span:
       name: Light Span
-      description: Number of LEDs in the moving light span.
+      description: Number of LEDs illuminated in moving light mode
       example: 40
       selector:
         number:
           min: 1
           max: 100
-    rgb_color:
-      name: RGB Color
-      description: RGB color for the LEDs.
-      example: [255, 100, 50]
-      selector:
-        color_rgb:
+
     num_leds:
       name: Number of LEDs
-      description: Total number of LEDs in the strip.
+      description: Total number of LEDs in the strip
       example: 300
       selector:
         number:
           min: 1
           max: 2000
-    # Add these new parameters
+
+    rgb_color:
+      name: RGB Color
+      description: Set the color of the LED strip using RGB values
+      example: [255, 100, 50]
+      selector:
+        color_rgb:
+
+    light_mode:
+      name: Light Mode
+      description: Select the operational mode of the LED strip
+      example: "Rainbow"
+      selector:
+        select:
+          options:
+            - "Standard"
+            - "Rainbow"
+            - "Color Wave"
+            - "Breathing"
+            - "Solid"
+
     center_shift:
       name: Center Shift
-      description: Shift the center point of the light effect.
+      description: Adjust the center point of the LED effect
       example: 0
       selector:
         number:
           min: -100
           max: 100
+
     trail_length:
       name: Trail Length
-      description: Length of the light trail effect.
-      example: 5
+      description: Length of light trails in the effect
+      example: 20
       selector:
         number:
           min: 0
           max: 100
+
     effect_speed:
       name: Effect Speed
-      description: Speed of light effects (%).
+      description: Speed of dynamic lighting effects
       example: 50
       selector:
         number:
           min: 1
           max: 100
           unit_of_measurement: "%"
+
     effect_intensity:
       name: Effect Intensity
-      description: Intensity of light effects (%).
-      example: 100
+      description: Intensity of dynamic lighting effects
+      example: 75
       selector:
         number:
           min: 1
           max: 100
           unit_of_measurement: "%"
+
     background_mode:
       name: Background Mode
-      description: Enable or disable background lighting.
-      example: true
+      description: Enable low-intensity background lighting
       selector:
         boolean:
+
     directional_light:
       name: Directional Light
-      description: Enable or disable directional lighting.
-      example: true
+      description: Enable directional lighting based on movement
       selector:
         boolean:
-    light_mode:
-      name: Light Mode
-      description: Set the operating mode of the light.
-      example: "moving"
-      selector:
-        select:
-          options:
-            - "moving"
-            - "static"
-            - "effect"
-    apply_settings:
-      name: Apply Settings
-      description: Apply all current settings to the AmbiSense device at once.
-      target:
-        entity:
-          domain: light
-          integration: ambisense
+
+apply_settings:
+  name: Apply All Settings
+  description: Apply all current settings to the AmbiSense LED strip
+  target:
+    entity:
+      domain: light
+      integration: ambisense
