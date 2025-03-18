@@ -66,6 +66,11 @@ SCAN_INTERVAL = timedelta(seconds=5)
 async def async_setup(hass: HomeAssistant, config: dict):
     """Set up the AmbiSense component."""
     hass.data.setdefault(DOMAIN, {})
+    
+    # Register services
+    from .service import async_setup_services
+    await async_setup_services(hass)
+    
     return True
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
@@ -90,6 +95,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
+        
+        # If this is the last entry, unload services
+        if not hass.data[DOMAIN]:
+            from .service import async_unload_services
+            await async_unload_services(hass)
+            
     return unload_ok
 
 class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
