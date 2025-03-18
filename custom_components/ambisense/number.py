@@ -7,6 +7,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.entity import DeviceInfo
 
 from . import DOMAIN, AmbiSenseDataUpdateCoordinator
 
@@ -32,6 +33,8 @@ async def async_setup_entry(
 class AmbiSenseNumberEntity(CoordinatorEntity, NumberEntity):
     """Base class for AmbiSense number entities."""
 
+    _attr_has_entity_name = True
+
     def __init__(
         self, 
         coordinator: AmbiSenseDataUpdateCoordinator,
@@ -44,7 +47,7 @@ class AmbiSenseNumberEntity(CoordinatorEntity, NumberEntity):
     ):
         """Initialize the number entity."""
         super().__init__(coordinator)
-        self._attr_name = f"{coordinator.name} {name_suffix}"
+        self._attr_name = name_suffix
         self._attr_unique_id = f"{coordinator.host}_{key}"
         self._key = key
         self._attr_native_min_value = minimum
@@ -52,6 +55,15 @@ class AmbiSenseNumberEntity(CoordinatorEntity, NumberEntity):
         self._attr_native_step = step
         if unit:
             self._attr_native_unit_of_measurement = unit
+            
+        # Device info for device registry
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, coordinator.host)},
+            name=coordinator.name,
+            manufacturer="TechPosts Media",
+            model="AmbiSense Radar-Controlled LED System",
+            sw_version="1.0",
+        )
 
     @property
     def available(self) -> bool:
