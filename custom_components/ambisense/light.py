@@ -11,6 +11,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.entity import DeviceInfo
 
 from . import DOMAIN, AmbiSenseDataUpdateCoordinator
 
@@ -30,17 +31,30 @@ class AmbiSenseLightEntity(CoordinatorEntity, LightEntity):
 
     _attr_supported_color_modes = {ColorMode.RGB}
     _attr_color_mode = ColorMode.RGB
+    _attr_has_entity_name = True
 
     def __init__(self, coordinator: AmbiSenseDataUpdateCoordinator):
         """Initialize the light."""
         super().__init__(coordinator)
-        self._attr_name = f"{coordinator.name} Light"
         self._attr_unique_id = f"{coordinator.host}_light"
+        self._attr_name = "Light"
         self._is_on = True  # Default to on as there's no explicit on/off in AmbiSense
+        
+        # Device info for device registry
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, coordinator.host)},
+            name=coordinator.name,
+            manufacturer="TechPosts Media",
+            model="AmbiSense Radar-Controlled LED System",
+            sw_version="1.0",
+        )
 
     @property
     def is_on(self) -> bool:
         """Return true if light is on."""
+        # Check if brightness is 0 (considered off)
+        if self.coordinator.data and self.coordinator.data.get("brightness", 0) == 0:
+            return False
         return self._is_on
 
     @property
