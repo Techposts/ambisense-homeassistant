@@ -2,7 +2,7 @@
 
 This custom component integrates your AmbiSense radar-controlled LED system with Home Assistant, allowing you to monitor and control your ambient lighting based on proximity detection.
 
-Make sure to install the [latest AmbISense firmware](https://github.com/Techposts/AmbiSense/blob/main/README.md).
+Make sure to install the [latest AmbiSense firmware](https://github.com/Techposts/AmbiSense/blob/main/README.md).
 
 ## Features
 
