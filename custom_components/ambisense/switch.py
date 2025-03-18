@@ -108,7 +108,7 @@ class AmbiSenseDirectionalLightSwitch(AmbiSenseSwitchEntity):
         super().__init__(
             coordinator=coordinator,
             name_suffix="Directional Light",
-            key="directionLightEnabled",
+            key="directionLight",
             icon="mdi:arrow-right-thick"
         )
         # We'll add specific handling for this switch
