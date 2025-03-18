@@ -192,3 +192,20 @@ class AmbiSenseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         _LOGGER.error(f"Discovery error: {e}")
     
     return discovered_devices
+
+import traceback
+
+class AmbiSenseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    def __init__(self):
+        """Initialize the config flow."""
+        super().__init__()
+        self._errors = {}
+
+    async def async_step_user(self, user_input=None):
+        try:
+            # Existing implementation
+            pass
+        except Exception as e:
+            _LOGGER.error(f"Config flow error: {e}")
+            _LOGGER.error(traceback.format_exc())
+            self._errors["base"] = "unknown"
