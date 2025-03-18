@@ -37,16 +37,16 @@ class AmbiSenseLightEntity(CoordinatorEntity, LightEntity):
         """Initialize the light."""
         super().__init__(coordinator)
         self._attr_unique_id = f"{coordinator.host}_light"
-        self._attr_name = "Light"
+        self._attr_name = "LED Strip"
         self._is_on = True  # Default to on as there's no explicit on/off in AmbiSense
         
         # Device info for device registry
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.host)},
-            name=coordinator.name,
+            name="AmbiSense",
             manufacturer="TechPosts Media",
             model="AmbiSense Radar-Controlled LED System",
-            sw_version="1.0",
+            sw_version="3.1",
         )
 
     @property
