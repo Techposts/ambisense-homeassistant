@@ -11,6 +11,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.entity import DeviceInfo
 
 from . import DOMAIN, AmbiSenseDataUpdateCoordinator
 
@@ -31,12 +32,22 @@ class AmbiSenseDistanceSensor(CoordinatorEntity, SensorEntity):
     _attr_device_class = SensorDeviceClass.DISTANCE
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = UnitOfLength.CENTIMETERS
+    _attr_has_entity_name = True
 
     def __init__(self, coordinator: AmbiSenseDataUpdateCoordinator):
         """Initialize the sensor."""
         super().__init__(coordinator)
-        self._attr_name = f"{coordinator.name} Distance"
         self._attr_unique_id = f"{coordinator.host}_distance"
+        self._attr_name = "Distance"
+        
+        # Device info for device registry
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, coordinator.host)},
+            name=coordinator.name,
+            manufacturer="TechPosts Media",
+            model="AmbiSense Radar-Controlled LED System",
+            sw_version="1.0",
+        )
 
     @property
     def available(self) -> bool:
