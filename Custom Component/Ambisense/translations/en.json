@@ -8,10 +8,17 @@
           "host": "IP address or mDNS name",
           "name": "Device Name (optional)"
         }
+      },
+      "device_selection": {
+        "title": "Select AmbiSense Device",
+        "description": "Choose from the discovered AmbiSense devices:",
+        "data": {
+          "device": "Available Devices"
+        }
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect, please check the address",
+      "cannot_connect": "Failed to connect, please check the device",
       "unknown": "Unexpected error"
     },
     "abort": {
