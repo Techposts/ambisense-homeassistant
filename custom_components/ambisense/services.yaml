@@ -111,3 +111,10 @@ update_settings:
             - "moving"
             - "static"
             - "effect"
+    apply_settings:
+      name: Apply Settings
+      description: Apply all current settings to the AmbiSense device at once.
+      target:
+        entity:
+          domain: light
+          integration: ambisense
