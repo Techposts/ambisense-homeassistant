@@ -12,9 +12,21 @@ from . import DOMAIN, AmbiSenseDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+# Mapping between numeric modes and descriptive names
+MODE_MAP = {
+    0: "Standard",
+    1: "Rainbow",
+    2: "Color Wave", 
+    3: "Breathing", 
+    4: "Solid"
+}
+
+REVERSE_MODE_MAP = {v: k for k, v in MODE_MAP.items()}
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant, 
+    entry: ConfigEntry, 
+    async_add_entities: AddEntitiesCallback
 ):
     """Set up AmbiSense select entities from a config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
@@ -25,12 +37,11 @@ async def async_setup_entry(
     
     async_add_entities(entities)
 
-
 class AmbiSenseLightModeSelect(CoordinatorEntity, SelectEntity):
     """Representation of an AmbiSense light mode selection."""
 
     _attr_has_entity_name = True
-    _attr_options = ["moving", "static", "effect"]
+    _attr_options = list(REVERSE_MODE_MAP.keys())
     _attr_icon = "mdi:lightbulb-variant"
 
     def __init__(self, coordinator: AmbiSenseDataUpdateCoordinator):
@@ -45,21 +56,34 @@ class AmbiSenseLightModeSelect(CoordinatorEntity, SelectEntity):
             name="AmbiSense",
             manufacturer="TechPosts Media",
             model="AmbiSense Radar-Controlled LED System",
-            sw_version="1.0",
+            sw_version="3.1",
         )
 
     @property
     def available(self) -> bool:
         """Return if entity is available."""
-        return self.coordinator.data is not None and "lightMode" in self.coordinator.data
+        return (self.coordinator.data is not None and 
+                "lightMode" in self.coordinator.data)
 
     @property
     def current_option(self):
         """Return the current selected option."""
         if not self.coordinator.data:
             return None
-        return self.coordinator.data.get("lightMode", "moving")
+        
+        # Get numeric mode from coordinator data, default to 0 (Standard)
+        current_mode = self.coordinator.data.get("lightMode", 0)
+        
+        # Convert numeric mode to descriptive name
+        return MODE_MAP.get(current_mode, "Standard")
 
     async def async_select_option(self, option: str):
         """Change the selected option."""
-        await self.coordinator.async_update_settings(light_mode=option)
+        # Convert descriptive name back to numeric mode
+        mode_value = REVERSE_MODE_MAP.get(option, 0)
+        
+        # Log the mode change for debugging
+        _LOGGER.info(f"Changing light mode to {option} (numeric value: {mode_value})")
+        
+        # Update settings via coordinator
+        await self.coordinator.async_update_settings(light_mode=mode_value)
