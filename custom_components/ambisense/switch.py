@@ -108,7 +108,7 @@ class AmbiSenseDirectionalLightSwitch(AmbiSenseSwitchEntity):
         super().__init__(
             coordinator=coordinator,
             name_suffix="Directional Light",
-            key="directionLightEnabled",  # Make sure this matches what your device returns
+            key="directionalLight",  # Changed to match firmware response
             icon="mdi:arrow-right-thick"
         )
         self._prev_state = None  # Track previous state to detect changes
