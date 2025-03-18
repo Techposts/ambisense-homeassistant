@@ -9,5 +9,6 @@
   "codeowners": ["@techposts"],
   "version": "0.2.1",
   "iot_class": "local_polling",
-  "zeroconf": ["_http._tcp.local."]
+  "zeroconf": ["_http._tcp.local."],
+  "icon": "mdi:led-strip-variant"
 }
