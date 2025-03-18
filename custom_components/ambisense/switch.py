@@ -82,7 +82,7 @@ class AmbiSenseSwitchEntity(CoordinatorEntity, SwitchEntity):
         self._is_on = True
         self.async_write_ha_state()
         # Force refresh after a delay to get confirmed state
-        await asyncio.sleep(1)  
+        await asyncio.sleep(2)  
         await self.coordinator.async_refresh()
 
     async def async_turn_off(self, **kwargs):
@@ -97,7 +97,7 @@ class AmbiSenseSwitchEntity(CoordinatorEntity, SwitchEntity):
         self._is_on = False
         self.async_write_ha_state()
         # Force refresh after a delay to get confirmed state
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)
         await self.coordinator.async_refresh()
 
 class AmbiSenseDirectionalLightSwitch(AmbiSenseSwitchEntity):
@@ -108,11 +108,33 @@ class AmbiSenseDirectionalLightSwitch(AmbiSenseSwitchEntity):
         super().__init__(
             coordinator=coordinator,
             name_suffix="Directional Light",
-            key="directionalLight",
+            key="directionalLight",  # Make sure this matches what your device returns
             icon="mdi:arrow-right-thick"
         )
-        # We'll add specific handling for this switch
-        self._attr_entity_registry_enabled_default = True
+        self._prev_state = None  # Track previous state to detect changes
+        
+    @property
+    def is_on(self) -> bool:
+        """Return true if directional light is on."""
+        if not self.coordinator.data:
+            return False
+            
+        # Get current state from coordinator
+        current_state = bool(self.coordinator.data.get(self._key, False))
+        
+        # If this is our first update, initialize prev_state
+        if self._prev_state is None:
+            self._prev_state = current_state
+            
+        # If state changed unexpectedly (without us triggering it), log it
+        if self._prev_state is not None and self._prev_state != self._is_on and self._is_on != current_state:
+            _LOGGER.warning(f"Unexpected state change detected. Internal: {self._is_on}, Device: {current_state}")
+            
+        # Update our tracking variables
+        self._prev_state = current_state
+        self._is_on = current_state
+        
+        return self._is_on
 
     async def async_turn_on(self, **kwargs):
         """Turn on directional light with enhanced handling."""
@@ -125,7 +147,7 @@ class AmbiSenseDirectionalLightSwitch(AmbiSenseSwitchEntity):
         self.async_write_ha_state()
         
         # Force a refresh after a delay to confirm state
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)  # Increased to 2 seconds
         await self.coordinator.async_refresh()
         
         # Debug log the state after refresh
@@ -142,7 +164,7 @@ class AmbiSenseDirectionalLightSwitch(AmbiSenseSwitchEntity):
         self.async_write_ha_state()
         
         # Force a refresh after a delay to confirm state
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)  # Increased to 2 seconds
         await self.coordinator.async_refresh()
         
         # Debug log the state after refresh
