@@ -45,7 +45,8 @@ DOMAIN = "ambisense"
 DEFAULT_NAME = "AmbiSense"
 DATA_UPDATED = f"{DOMAIN}_data_updated"
 
-PLATFORMS = ["light", "sensor", "number"]
+# Add select and switch platforms
+PLATFORMS = ["light", "sensor", "number", "select", "switch"]
 
 # Configuration schema
 CONFIG_SCHEMA = vol.Schema(
