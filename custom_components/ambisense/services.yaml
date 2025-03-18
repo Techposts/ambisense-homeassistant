@@ -54,3 +54,60 @@ update_settings:
         number:
           min: 1
           max: 2000
+    # Add these new parameters
+    center_shift:
+      name: Center Shift
+      description: Shift the center point of the light effect.
+      example: 0
+      selector:
+        number:
+          min: -100
+          max: 100
+    trail_length:
+      name: Trail Length
+      description: Length of the light trail effect.
+      example: 5
+      selector:
+        number:
+          min: 0
+          max: 100
+    effect_speed:
+      name: Effect Speed
+      description: Speed of light effects (%).
+      example: 50
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: "%"
+    effect_intensity:
+      name: Effect Intensity
+      description: Intensity of light effects (%).
+      example: 100
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: "%"
+    background_mode:
+      name: Background Mode
+      description: Enable or disable background lighting.
+      example: true
+      selector:
+        boolean:
+    directional_light:
+      name: Directional Light
+      description: Enable or disable directional lighting.
+      example: true
+      selector:
+        boolean:
+    light_mode:
+      name: Light Mode
+      description: Set the operating mode of the light.
+      example: "moving"
+      selector:
+        select:
+          options:
+            - "moving"
+            - "static"
+            - "effect"
