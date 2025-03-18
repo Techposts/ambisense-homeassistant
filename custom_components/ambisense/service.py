@@ -109,14 +109,72 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         # Apply settings to all target devices
         for entity in target_entities:
             await entity.coordinator.async_update_settings(**settings)
+
+    async def async_apply_settings_service(service_call: ServiceCall) -> None:
+        """Handle apply settings service calls."""
+        entity_ids = service_call.data.get("entity_id")
+        
+        if not entity_ids:
+            return
+            
+        # Get entities and ensure they are AmbiSense entities
+        component = hass.data.get(LIGHT_DOMAIN)
+        if not component:
+            return
+            
+        target_entities = []
+        for entity_id in entity_ids:
+            entity = component.get_entity(entity_id)
+            if entity and hasattr(entity, 'coordinator') and isinstance(entity.coordinator, AmbiSenseDataUpdateCoordinator):
+                target_entities.append(entity)
+        
+        if not target_entities:
+            _LOGGER.warning("No valid AmbiSense entities found for service call")
+            return
+            
+        # For each entity, send all current settings to force a refresh/update
+        for entity in target_entities:
+            coordinator = entity.coordinator
+            if coordinator.data:
+                # Get all current settings from the coordinator's data
+                settings = {
+                    "min_distance": coordinator.data.get("minDistance", 30),
+                    "max_distance": coordinator.data.get("maxDistance", 300),
+                    "brightness": coordinator.data.get("brightness", 255),
+                    "light_span": coordinator.data.get("movingLightSpan", 40),
+                    "rgb_color": [
+                        coordinator.data.get("redValue", 255),
+                        coordinator.data.get("greenValue", 255),
+                        coordinator.data.get("blueValue", 255)
+                    ],
+                    "num_leds": coordinator.data.get("numLeds", 300),
+                    "center_shift": coordinator.data.get("centerShift", 0),
+                    "trail_length": coordinator.data.get("trailLength", 5),
+                    "effect_speed": coordinator.data.get("effectSpeed", 50),
+                    "effect_intensity": coordinator.data.get("effectIntensity", 100),
+                    "background_mode": coordinator.data.get("backgroundMode", False),
+                    "directional_light": coordinator.data.get("directionalLight", True),
+                    "light_mode": coordinator.data.get("lightMode", "moving"),
+                }
+                
+                # Send all settings at once to force a complete update
+                await coordinator.async_update_settings(**settings)
+                _LOGGER.info(f"Applied all settings to {entity.entity_id}")
+
     
     # Register our service with Home Assistant
+    # Register the apply_settings service
     hass.services.async_register(
         DOMAIN,
-        SERVICE_UPDATE_SETTINGS,
-        async_update_settings_service,
-        schema=UPDATE_SETTINGS_SCHEMA,
+        "apply_settings",
+        async_apply_settings_service,
+        schema=vol.Schema(
+            {
+                vol.Required("entity_id"): cv.entity_ids,
+            }
+        ),
     )
+    
 
 async def async_unload_services(hass: HomeAssistant) -> None:
     """Unload AmbiSense services."""
