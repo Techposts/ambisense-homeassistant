@@ -1,0 +1,56 @@
+update_settings:
+  name: Update Settings
+  description: Update settings on the AmbiSense device.
+  target:
+    entity:
+      domain: light
+      integration: ambisense
+  fields:
+    min_distance:
+      name: Minimum Distance
+      description: Minimum detection distance (cm).
+      example: 30
+      selector:
+        number:
+          min: 0
+          max: 200
+          unit_of_measurement: cm
+    max_distance:
+      name: Maximum Distance
+      description: Maximum detection distance (cm).
+      example: 300
+      selector:
+        number:
+          min: 50
+          max: 500
+          unit_of_measurement: cm
+    brightness:
+      name: Brightness
+      description: LED brightness (0-255).
+      example: 255
+      selector:
+        number:
+          min: 0
+          max: 255
+    light_span:
+      name: Light Span
+      description: Number of LEDs in the moving light span.
+      example: 40
+      selector:
+        number:
+          min: 1
+          max: 100
+    rgb_color:
+      name: RGB Color
+      description: RGB color for the LEDs.
+      example: [255, 100, 50]
+      selector:
+        color_rgb:
+    num_leds:
+      name: Number of LEDs
+      description: Total number of LEDs in the strip.
+      example: 300
+      selector:
+        number:
+          min: 1
+          max: 2000
