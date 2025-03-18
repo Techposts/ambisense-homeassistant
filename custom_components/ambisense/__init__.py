@@ -206,55 +206,74 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
             
     async def async_update_settings(self, **kwargs):
         """Update settings on the device."""
-        params = {}
-        # Map from possible HA attributes to device parameters
+        _LOGGER.debug("Received settings update request: %s", kwargs)
+        
+        # Mapping of HA parameter names to device parameter names
         mapping = {
             "min_distance": "minDist",
             "max_distance": "maxDist",
             "brightness": "brightness",
             "light_span": "lightSpan",
-            "rgb_color": None,  # Special handling for RGB
             "num_leds": "numLeds",
-            # Add mappings for new parameters
-            "background_mode": "backgroundMode",
-            "directional_light": "directionalLight",
-            "center_shift": "centerShift",
-            "trail_length": "trailLength",
-            "effect_speed": "effectSpeed",
+            "rgb_color": None,  # Special handling
+            
+            # New parameters
+            "center_shift": "centerShift", 
+            "trail_length": "trailLength", 
+            "effect_speed": "effectSpeed", 
             "effect_intensity": "effectIntensity",
-            "light_mode": "lightMode",
+            "background_mode": "backgroundMode",
+            "directional_light": "directionalLight", 
+            "light_mode": "lightMode"
         }
         
-        # Handle RGB specially
+        # Prepare parameters for API
+        params = {}
+        
+        # Special handling for RGB color
         if "rgb_color" in kwargs:
             r, g, b = kwargs["rgb_color"]
             params["redValue"] = r
             params["greenValue"] = g
             params["blueValue"] = b
         
-        # Handle other parameters
+        # Process other parameters
         for key, value in kwargs.items():
-            if key in mapping and mapping[key] is not None:
-                # Handle boolean parameters correctly for the API
+            if key in mapping:
+                device_key = mapping[key]
+                
+                # Skip if mapping is None (already handled or not applicable)
+                if device_key is None:
+                    continue
+                
+                # Convert boolean to 1/0 for parameters that need it
                 if isinstance(value, bool):
                     value = 1 if value else 0
-                params[mapping[key]] = value
+                
+                params[device_key] = value
         
+        _LOGGER.debug("Mapped parameters for API: %s", params)
+        
+        # Construct URL with parameters
         if not params:
+            _LOGGER.warning("No valid parameters to update")
             return False
-            
-        # Construct the URL with parameters
+        
         url = f"http://{self.host}/set"
         param_strings = [f"{k}={v}" for k, v in params.items()]
         url += "?" + "&".join(param_strings)
+        
+        _LOGGER.debug("Sending update request to: %s", url)
         
         try:
             async with self.session.get(url, timeout=5) as resp:
                 success = resp.status == 200
                 if success:
-                    # Force an immediate data refresh
+                    _LOGGER.info("Successfully updated device settings")
                     await self.async_refresh()
+                else:
+                    _LOGGER.error("Failed to update settings. Status: %s", resp.status)
                 return success
-        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+        except Exception as err:
             _LOGGER.error("Error updating settings: %s", err)
             return False
