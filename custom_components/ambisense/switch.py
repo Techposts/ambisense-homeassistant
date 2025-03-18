@@ -12,7 +12,6 @@ from . import DOMAIN, AmbiSenseDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ):
@@ -25,7 +24,6 @@ async def async_setup_entry(
     ]
     
     async_add_entities(entities)
-
 
 class AmbiSenseSwitchEntity(CoordinatorEntity, SwitchEntity):
     """Base class for AmbiSense switch entities."""
@@ -53,52 +51,8 @@ class AmbiSenseSwitchEntity(CoordinatorEntity, SwitchEntity):
             name="AmbiSense",
             manufacturer="TechPosts Media",
             model="AmbiSense Radar-Controlled LED System",
-            sw_version="1.0",
+            sw_version="3.1",
         )
-
-    @property
-    def available(self) -> bool:
-        """Return if entity is available."""
-        return self.coordinator.data is not None and self._key in self.coordinator.data
-
-    @property
-    def is_on(self) -> bool:
-        """Return true if switch is on."""
-        if not self.coordinator.data:
-            return False
-        return bool(self.coordinator.data.get(self._key, False))
-
-    async def async_turn_on(self, **kwargs):
-        """Turn the switch on."""
-        param_mapping = {
-            "backgroundMode": "background_mode",
-            "directionalLight": "directional_light",
-        }
-        param_name = param_mapping.get(self._key, self._key)
-        await self.coordinator.async_update_settings(**{param_name: True})
-
-    async def async_turn_off(self, **kwargs):
-        """Turn the switch off."""
-        param_mapping = {
-            "backgroundMode": "background_mode",
-            "directionalLight": "directional_light",
-        }
-        param_name = param_mapping.get(self._key, self._key)
-        await self.coordinator.async_update_settings(**{param_name: False})
-
-
-class AmbiSenseBackgroundModeSwitch(AmbiSenseSwitchEntity):
-    """Representation of the background mode switch."""
-
-    def __init__(self, coordinator):
-        """Initialize the entity."""
-        super().__init__(
-            coordinator=coordinator,
-            name_suffix="Background Mode",
-            key="backgroundMode",
-            icon="mdi:lightbulb-group"
-        )
-
 
 class AmbiSenseDirectionalLightSwitch(AmbiSenseSwitchEntity):
     """Representation of the directional light switch."""
@@ -110,4 +64,56 @@ class AmbiSenseDirectionalLightSwitch(AmbiSenseSwitchEntity):
             name_suffix="Directional Light",
             key="directionalLight",
             icon="mdi:arrow-right-thick"
+        )
+
+    @property
+    def is_on(self) -> bool:
+        """Explicitly control the on/off state from coordinator data."""
+        if not self.coordinator.data:
+            _LOGGER.debug("No coordinator data available for directional light")
+            return False
+        
+        # Use explicit boolean conversion and logging
+        current_state = bool(self.coordinator.data.get('directionalLight', False))
+        _LOGGER.debug(f"Current Directional Light state: {current_state}")
+        return current_state
+
+    async def async_turn_on(self, **kwargs):
+        """Turn on the directional light with comprehensive logging."""
+        _LOGGER.debug("Attempting to turn ON Directional Light")
+        
+        # Force a specific state with explicit logging
+        try:
+            result = await self.coordinator.async_update_settings(directional_light=True)
+            _LOGGER.info(f"Directional Light ON request result: {result}")
+            
+            # Force a refresh to ensure state synchronization
+            await self.coordinator.async_refresh()
+        except Exception as e:
+            _LOGGER.error(f"Error turning on Directional Light: {e}")
+
+    async def async_turn_off(self, **kwargs):
+        """Turn off the directional light with comprehensive logging."""
+        _LOGGER.debug("Attempting to turn OFF Directional Light")
+        
+        # Force a specific state with explicit logging
+        try:
+            result = await self.coordinator.async_update_settings(directional_light=False)
+            _LOGGER.info(f"Directional Light OFF request result: {result}")
+            
+            # Force a refresh to ensure state synchronization
+            await self.coordinator.async_refresh()
+        except Exception as e:
+            _LOGGER.error(f"Error turning off Directional Light: {e}")
+
+class AmbiSenseBackgroundModeSwitch(AmbiSenseSwitchEntity):
+    """Representation of the background mode switch."""
+
+    def __init__(self, coordinator):
+        """Initialize the entity."""
+        super().__init__(
+            coordinator=coordinator,
+            name_suffix="Background Mode",
+            key="backgroundMode",
+            icon="mdi:lightbulb-group"
         )
