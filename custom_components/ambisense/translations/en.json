@@ -5,8 +5,15 @@
         "title": "Connect to AmbiSense",
         "description": "Set up AmbiSense to monitor and control your radar-based LED system",
         "data": {
-          "host": "IP address or mDNS name",
+          "host": "IP address or hostname",
           "name": "Device Name (optional)"
+        }
+      },
+      "device_selection": {
+        "title": "Select AmbiSense Device",
+        "description": "Choose from the discovered AmbiSense devices:",
+        "data": {
+          "device": "Device"
         }
       }
     },
