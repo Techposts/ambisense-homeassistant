@@ -9,7 +9,9 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.network import get_mdns
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.zeroconf import ZeroconfServiceInfo
+from zeroconf.asyncio import AsyncServiceInfo
 
 from . import DOMAIN, DEFAULT_NAME
 
@@ -22,6 +24,9 @@ DATA_SCHEMA = vol.Schema(
     }
 )
 
+class CannotConnect(HomeAssistantError):
+    """Error to indicate we cannot connect."""
+
 class AmbiSenseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for AmbiSense."""
     VERSION = 1
@@ -30,6 +35,61 @@ class AmbiSenseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self):
         """Initialize the config flow."""
         self._discovered_devices = {}
+
+    async def async_step_zeroconf(self, discovery_info: ZeroconfServiceInfo):
+        """Handle zeroconf discovery."""
+        # Check if this is our device
+        hostname = discovery_info.hostname
+        if not hostname.startswith("ambisense-"):
+            return self.async_abort(reason="not_ambisense_device")
+
+        # Extract name and IP address
+        name = hostname.replace(".local.", "")
+        host = discovery_info.host
+        
+        # Set unique ID
+        await self.async_set_unique_id(host)
+        self._abort_if_unique_id_configured()
+        
+        # Store discovered device info
+        self.context["title_placeholders"] = {"name": name}
+        
+        # Setup discovery info for the next step
+        self._discovered_devices = {name: host}
+        
+        return await self.async_step_discovery_confirm()
+        
+    async def async_step_discovery_confirm(self, user_input=None):
+        """Handle confirmation of discovered device."""
+        if user_input is not None:
+            name = list(self._discovered_devices.keys())[0]
+            host = self._discovered_devices[name]
+            
+            try:
+                info = await self._validate_input({
+                    CONF_HOST: host,
+                    CONF_NAME: name
+                })
+                
+                return self.async_create_entry(
+                    title=info["title"],
+                    data={
+                        CONF_HOST: host,
+                        CONF_NAME: name
+                    }
+                )
+            except CannotConnect:
+                return self.async_abort(reason="cannot_connect")
+            except Exception:
+                _LOGGER.exception("Unexpected exception")
+                return self.async_abort(reason="unknown")
+                
+        name = list(self._discovered_devices.keys())[0]
+        return self.async_show_form(
+            step_id="discovery_confirm",
+            description_placeholders={"name": name},
+            data_schema=vol.Schema({})
+        )
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
@@ -129,83 +189,86 @@ class AmbiSenseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
         
     async def _discover_devices(self):
-    """Discover AmbiSense devices on the network."""
-    discovered_devices = {}
-    
-    try:
-        # First try to discover devices via mDNS browsing
-        zc = await get_mdns(self.hass)
+        """Discover AmbiSense devices on the network."""
+        discovered_devices = {}
         
-        # Use "_http._tcp.local." for general HTTP devices
-        # We'll filter for "ambisense" in the name
-        service_type = "_http._tcp.local."
-        
-        results = await zc.async_browse(service_type)
-        
-        for result in results:
-            try:
-                # Only process results that match our naming pattern
-                if "ambisense" in result.name.lower():
-                    info = await zc.async_get_service_info(service_type, result.name)
+        try:
+            from zeroconf import ServiceBrowser, Zeroconf
+            from zeroconf.asyncio import AsyncZeroconf
+
+            async_zc = AsyncZeroconf()
+            service_types = ["_http._tcp.local."]
+            
+            for service_type in service_types:
+                services = await async_zc.async_browse(service_type)
+                
+                for service in services:
+                    if not service.name.startswith("ambisense-"):
+                        continue
+                    
+                    info = AsyncServiceInfo(service_type, service.name)
+                    await info.async_request(async_zc.zeroconf, 3000)
                     
                     if info and info.addresses:
-                        hostname = result.name.rstrip(".local.")
+                        hostname = service.name.replace(".local.", "")
                         
-                        # Extract IPv4 addresses
-                        ipv4_addresses = []
+                        # Extract the first IPv4 address
                         for addr in info.addresses:
-                            try:
-                                # Convert bytes to string if necessary
-                                if isinstance(addr, bytes):
-                                    import socket
-                                    addr = socket.inet_ntoa(addr)
-                                
-                                # Check if this looks like an IPv4 address
-                                if len(addr.split(".")) == 4:
-                                    ipv4_addresses.append(addr)
-                            except Exception:
-                                continue
-                                
-                        if ipv4_addresses:
-                            discovered_devices[hostname] = ipv4_addresses[0]
-            except Exception as e:
-                _LOGGER.error(f"Error processing discovery result {result.name}: {e}")
-                continue
-        
-        # Additional fallback: Try to directly resolve common ambisense hostnames
-        # This can help if browsing failed but we know the naming pattern
-        common_locations = ["livingroom", "bedroom", "kitchen", "home", "office"]
-        for location in common_locations:
-            hostname = f"ambisense-{location}.local"
-            try:
-                import socket
-                addr_info = await self.hass.async_add_executor_job(
-                    socket.gethostbyname, hostname
-                )
-                if addr_info:
-                    discovered_devices[hostname.rstrip(".local")] = addr_info
-            except Exception:
-                # Just skip if can't resolve
-                pass
-                
-    except Exception as e:
-        _LOGGER.error(f"Discovery error: {e}")
-    
-    return discovered_devices
-
-import traceback
-
-class AmbiSenseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    def __init__(self):
-        """Initialize the config flow."""
-        super().__init__()
-        self._errors = {}
-
-    async def async_step_user(self, user_input=None):
-        try:
-            # Existing implementation
-            pass
+                            ip_addr = ".".join(str(ord(byte)) for byte in addr) if isinstance(addr, bytes) else addr
+                            discovered_devices[hostname] = ip_addr
+                            break
+            
+            await async_zc.async_close()
+            
+            # Additional fallback: Try to directly resolve common ambisense hostnames
+            common_locations = ["livingroom", "bedroom", "kitchen", "home", "office"]
+            for location in common_locations:
+                hostname = f"ambisense-{location}"
+                try:
+                    import socket
+                    addr_info = await self.hass.async_add_executor_job(
+                        socket.gethostbyname, f"{hostname}.local"
+                    )
+                    if addr_info:
+                        discovered_devices[hostname] = addr_info
+                except Exception:
+                    # Just skip if can't resolve
+                    pass
+                    
         except Exception as e:
-            _LOGGER.error(f"Config flow error: {e}")
-            _LOGGER.error(traceback.format_exc())
-            self._errors["base"] = "unknown"
+            _LOGGER.error(f"Discovery error: {e}")
+        
+        return discovered_devices
+    
+    async def _validate_input(self, data):
+        """Validate the user input allows us to connect."""
+        host = data[CONF_HOST]
+        name = data.get(CONF_NAME, DEFAULT_NAME)
+        
+        # Verify that we can connect to the device
+        session = async_get_clientsession(self.hass)
+        
+        try:
+            # First try settings endpoint
+            settings_url = f"http://{host}/settings"
+            async with session.get(settings_url, timeout=10) as response:
+                if response.status != 200:
+                    raise CannotConnect
+                
+                # Try to parse response as JSON
+                await response.json()
+                
+        except (asyncio.TimeoutError, aiohttp.ClientError, ValueError):
+            # If settings fails, try distance endpoint
+            try:
+                distance_url = f"http://{host}/distance"
+                async with session.get(distance_url, timeout=10) as response:
+                    if response.status != 200:
+                        raise CannotConnect
+            except (asyncio.TimeoutError, aiohttp.ClientError):
+                raise CannotConnect
+            
+        # If we get here, the connection was successful
+        return {
+            "title": name
+        }
