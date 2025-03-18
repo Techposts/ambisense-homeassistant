@@ -13,44 +13,48 @@ _LOGGER = logging.getLogger(__name__)
 
 SERVICE_UPDATE_SETTINGS = "update_settings"
 
-    # Add these new parameter constants
-    ATTR_CENTER_SHIFT = "center_shift"
-    ATTR_TRAIL_LENGTH = "trail_length"
-    ATTR_EFFECT_SPEED = "effect_speed"
-    ATTR_EFFECT_INTENSITY = "effect_intensity"
-    ATTR_BACKGROUND_MODE = "background_mode"
-    ATTR_DIRECTIONAL_LIGHT = "directional_light"
-    ATTR_LIGHT_MODE = "light_mode"
-    
-    # Update the schema to include new parameters
-    UPDATE_SETTINGS_SCHEMA = vol.Schema(
-        {
-            # Original parameters
-            vol.Optional(ATTR_MIN_DISTANCE): vol.All(vol.Coerce(int), vol.Range(min=0, max=200)),
-            vol.Optional(ATTR_MAX_DISTANCE): vol.All(vol.Coerce(int), vol.Range(min=50, max=500)),
-            vol.Optional(ATTR_BRIGHTNESS): vol.All(vol.Coerce(int), vol.Range(min=0, max=255)),
-            vol.Optional(ATTR_LIGHT_SPAN): vol.All(vol.Coerce(int), vol.Range(min=1, max=100)),
-            vol.Optional(ATTR_RGB_COLOR): vol.All(
-                vol.Length(3), [vol.All(vol.Coerce(int), vol.Range(min=0, max=255))]
-            ),
-            vol.Optional(ATTR_NUM_LEDS): vol.All(vol.Coerce(int), vol.Range(min=1, max=2000)),
-            
-            # New parameters
-            vol.Optional(ATTR_CENTER_SHIFT): vol.All(vol.Coerce(int), vol.Range(min=-100, max=100)),
-            vol.Optional(ATTR_TRAIL_LENGTH): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
-            vol.Optional(ATTR_EFFECT_SPEED): vol.All(vol.Coerce(int), vol.Range(min=1, max=100)),
-            vol.Optional(ATTR_EFFECT_INTENSITY): vol.All(vol.Coerce(int), vol.Range(min=1, max=100)),
-            vol.Optional(ATTR_BACKGROUND_MODE): cv.boolean,
-            vol.Optional(ATTR_DIRECTIONAL_LIGHT): cv.boolean,
-            vol.Optional(ATTR_LIGHT_MODE): vol.In(["moving", "static", "effect"]),
-        }
-    )
-    
-    # Update the service call handler to process new parameters
-    async def async_update_settings_service(service_call: ServiceCall) -> None:
-        """Handle update settings service calls."""
-    
+# Parameter constants
+ATTR_MIN_DISTANCE = "min_distance"
+ATTR_MAX_DISTANCE = "max_distance"
+ATTR_BRIGHTNESS = "brightness"
+ATTR_LIGHT_SPAN = "light_span"
+ATTR_RGB_COLOR = "rgb_color"
+ATTR_NUM_LEDS = "num_leds"
+ATTR_CENTER_SHIFT = "center_shift"
+ATTR_TRAIL_LENGTH = "trail_length"
+ATTR_EFFECT_SPEED = "effect_speed"
+ATTR_EFFECT_INTENSITY = "effect_intensity"
+ATTR_BACKGROUND_MODE = "background_mode"
+ATTR_DIRECTIONAL_LIGHT = "directional_light"
+ATTR_LIGHT_MODE = "light_mode"
+
+# Schema for the update_settings service
+UPDATE_SETTINGS_SCHEMA = vol.Schema(
+    {
+        # Original parameters
+        vol.Optional(ATTR_MIN_DISTANCE): vol.All(vol.Coerce(int), vol.Range(min=0, max=200)),
+        vol.Optional(ATTR_MAX_DISTANCE): vol.All(vol.Coerce(int), vol.Range(min=50, max=500)),
+        vol.Optional(ATTR_BRIGHTNESS): vol.All(vol.Coerce(int), vol.Range(min=0, max=255)),
+        vol.Optional(ATTR_LIGHT_SPAN): vol.All(vol.Coerce(int), vol.Range(min=1, max=100)),
+        vol.Optional(ATTR_RGB_COLOR): vol.All(
+            vol.Length(3), [vol.All(vol.Coerce(int), vol.Range(min=0, max=255))]
+        ),
+        vol.Optional(ATTR_NUM_LEDS): vol.All(vol.Coerce(int), vol.Range(min=1, max=2000)),
         
+        # New parameters
+        vol.Optional(ATTR_CENTER_SHIFT): vol.All(vol.Coerce(int), vol.Range(min=-100, max=100)),
+        vol.Optional(ATTR_TRAIL_LENGTH): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+        vol.Optional(ATTR_EFFECT_SPEED): vol.All(vol.Coerce(int), vol.Range(min=1, max=100)),
+        vol.Optional(ATTR_EFFECT_INTENSITY): vol.All(vol.Coerce(int), vol.Range(min=1, max=100)),
+        vol.Optional(ATTR_BACKGROUND_MODE): cv.boolean,
+        vol.Optional(ATTR_DIRECTIONAL_LIGHT): cv.boolean,
+        vol.Optional(ATTR_LIGHT_MODE): vol.In(["moving", "static", "effect"]),
+    }
+)
+
+async def async_setup_services(hass: HomeAssistant) -> None:
+    """Set up services for the AmbiSense integration."""
+    
     async def async_update_settings_service(service_call: ServiceCall) -> None:
         """Handle update settings service calls."""
         entity_ids = service_call.data.get("entity_id")
@@ -87,8 +91,8 @@ SERVICE_UPDATE_SETTINGS = "update_settings"
             settings["rgb_color"] = service_call.data[ATTR_RGB_COLOR]
         if ATTR_NUM_LEDS in service_call.data:
             settings["num_leds"] = service_call.data[ATTR_NUM_LEDS]
-         if ATTR_CENTER_SHIFT in service_call.data:
-        settings["center_shift"] = service_call.data[ATTR_CENTER_SHIFT]
+        if ATTR_CENTER_SHIFT in service_call.data:
+            settings["center_shift"] = service_call.data[ATTR_CENTER_SHIFT]
         if ATTR_TRAIL_LENGTH in service_call.data:
             settings["trail_length"] = service_call.data[ATTR_TRAIL_LENGTH]
         if ATTR_EFFECT_SPEED in service_call.data:
@@ -100,7 +104,8 @@ SERVICE_UPDATE_SETTINGS = "update_settings"
         if ATTR_DIRECTIONAL_LIGHT in service_call.data:
             settings["directional_light"] = service_call.data[ATTR_DIRECTIONAL_LIGHT]
         if ATTR_LIGHT_MODE in service_call.data:
-            settings["light_mode"] = service_call.data[ATTR_LIGHT_MODE]    
+            settings["light_mode"] = service_call.data[ATTR_LIGHT_MODE]
+            
         # Apply settings to all target devices
         for entity in target_entities:
             await entity.coordinator.async_update_settings(**settings)
