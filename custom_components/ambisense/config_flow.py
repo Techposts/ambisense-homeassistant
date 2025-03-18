@@ -71,10 +71,12 @@ class AmbiSenseDiscovery:
         return discovered_devices
 
 
+@config_entries.HANDLERS.register(DOMAIN)
 class AmbiSenseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for AmbiSense with mDNS support."""
-
+    
     VERSION = 2  # Increment version for mDNS changes
+    CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
 
     def __init__(self):
         """Initialize the config flow."""
