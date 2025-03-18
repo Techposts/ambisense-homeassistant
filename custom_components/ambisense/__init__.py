@@ -2,7 +2,6 @@
 AmbiSense integration for Home Assistant.
 For more details about this integration, please refer to the documentation at
 https://github.com/techposts/ambisense-homeassistant
-https://claude.ai/chat/d71a8cba-eaf4-48cb-84ed-5d5ad6714b5f
 """
 import asyncio
 import logging
@@ -13,6 +12,7 @@ from datetime import timedelta
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -33,7 +33,9 @@ from homeassistant.const import (
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
+    UpdateFailed,
 )
+from homeassistant.exceptions import ConfigEntryNotReady
 import homeassistant.helpers.config_validation as cv
 
 _LOGGER = logging.getLogger(__name__)
@@ -72,7 +74,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     name = entry.data.get(CONF_NAME, DEFAULT_NAME)
 
     coordinator = AmbiSenseDataUpdateCoordinator(hass, host, name)
-    await coordinator.async_config_entry_first_refresh()
+    
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except ConfigEntryNotReady:
+        raise ConfigEntryNotReady(f"Failed to connect to AmbiSense at {host}")
 
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
@@ -93,6 +99,7 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
         """Initialize."""
         self.host = host
         self.name = name
+        self.session = async_get_clientsession(hass)
         self.data = {}
         self.available = True
 
@@ -110,42 +117,70 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
             distance = await self._fetch_distance()
             settings = await self._fetch_settings()
             
-            # Combine the data
-            data = {"distance": distance, **settings}
+            if settings is None and distance is None:
+                self.available = False
+                raise UpdateFailed("Failed to update data from AmbiSense device")
+            
+            # Use previous settings data if new fetch failed
+            if settings is None and hasattr(self, "data") and "minDistance" in self.data:
+                settings = {
+                    k: v for k, v in self.data.items() 
+                    if k != "distance"
+                }
+            
+            # Combine the data (with defaults for missing values)
+            data = {
+                "distance": distance if distance is not None else 0,
+                "minDistance": settings.get("minDistance", 30),
+                "maxDistance": settings.get("maxDistance", 300),
+                "brightness": settings.get("brightness", 255),
+                "movingLightSpan": settings.get("movingLightSpan", 40),
+                "numLeds": settings.get("numLeds", 300),
+                "redValue": settings.get("redValue", 255),
+                "greenValue": settings.get("greenValue", 255),
+                "blueValue": settings.get("blueValue", 255)
+            }
+            
+            self.available = True
             return data
         except Exception as err:
             self.available = False
             _LOGGER.exception("Error communicating with AmbiSense: %s", err)
-            raise
+            raise UpdateFailed(f"Error communicating with AmbiSense: {err}")
 
     async def _fetch_distance(self):
         """Fetch current distance from device."""
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f"http://{self.host}/distance", timeout=10) as resp:
-                    if resp.status == 200:
-                        text = await resp.text()
+            async with self.session.get(f"http://{self.host}/distance", timeout=5) as resp:
+                if resp.status == 200:
+                    text = await resp.text()
+                    try:
                         return int(text.strip())
-                    else:
-                        _LOGGER.error("Failed to get distance, status: %s", resp.status)
+                    except ValueError:
+                        _LOGGER.error("Invalid distance value: %s", text)
                         return None
+                else:
+                    _LOGGER.error("Failed to get distance, status: %s", resp.status)
+                    return None
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
-            _LOGGER.error("Error fetching distance: %s", err)
+            _LOGGER.debug("Error fetching distance: %s", err)
             return None
 
     async def _fetch_settings(self):
         """Fetch settings from device."""
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f"http://{self.host}/settings", timeout=10) as resp:
-                    if resp.status == 200:
-                        return await resp.json()
-                    else:
-                        _LOGGER.error("Failed to get settings, status: %s", resp.status)
-                        return {}
+            async with self.session.get(f"http://{self.host}/settings", timeout=5) as resp:
+                if resp.status == 200:
+                    return await resp.json()
+                else:
+                    _LOGGER.error("Failed to get settings, status: %s", resp.status)
+                    return None
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
-            _LOGGER.error("Error fetching settings: %s", err)
-            return {}
+            _LOGGER.debug("Error fetching settings: %s", err)
+            return None
+        except ValueError as err:
+            _LOGGER.error("Error parsing settings JSON: %s", err)
+            return None
             
     async def async_update_settings(self, **kwargs):
         """Update settings on the device."""
@@ -181,13 +216,12 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
         url += "?" + "&".join(param_strings)
         
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=10) as resp:
-                    success = resp.status == 200
-                    if success:
-                        # Force an immediate data refresh
-                        await self.async_refresh()
-                    return success
+            async with self.session.get(url, timeout=5) as resp:
+                success = resp.status == 200
+                if success:
+                    # Force an immediate data refresh
+                    await self.async_refresh()
+                return success
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             _LOGGER.error("Error updating settings: %s", err)
             return False
