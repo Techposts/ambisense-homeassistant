@@ -14,6 +14,7 @@ from . import DOMAIN, AmbiSenseDataUpdateCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 
+
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ):
@@ -25,9 +26,81 @@ async def async_setup_entry(
         AmbiSenseMaxDistanceNumber(coordinator),
         AmbiSenseLightSpanNumber(coordinator),
         AmbiSenseNumLedsNumber(coordinator),
+        # Add these new number entities
+        AmbiSenseCenterShiftNumber(coordinator),
+        AmbiSenseTrailLengthNumber(coordinator),
+        AmbiSenseEffectSpeedNumber(coordinator),
+        AmbiSenseEffectIntensityNumber(coordinator),
     ]
     
     async_add_entities(entities)
+
+# Add these new number entity classes
+
+class AmbiSenseCenterShiftNumber(AmbiSenseNumberEntity):
+    """Representation of the center shift setting."""
+
+    def __init__(self, coordinator):
+        """Initialize the entity."""
+        super().__init__(
+            coordinator=coordinator,
+            name_suffix="Center Shift",
+            key="centerShift",
+            minimum=-100,
+            maximum=100,
+            step=1,
+            icon="mdi:arrow-expand-horizontal"
+        )
+
+
+class AmbiSenseTrailLengthNumber(AmbiSenseNumberEntity):
+    """Representation of the trail length setting."""
+
+    def __init__(self, coordinator):
+        """Initialize the entity."""
+        super().__init__(
+            coordinator=coordinator,
+            name_suffix="Trail Length",
+            key="trailLength",
+            minimum=0,
+            maximum=100,
+            step=1,
+            icon="mdi:blur-linear"
+        )
+
+
+class AmbiSenseEffectSpeedNumber(AmbiSenseNumberEntity):
+    """Representation of the effect speed setting."""
+
+    def __init__(self, coordinator):
+        """Initialize the entity."""
+        super().__init__(
+            coordinator=coordinator,
+            name_suffix="Effect Speed",
+            key="effectSpeed",
+            minimum=1,
+            maximum=100,
+            step=1,
+            unit=PERCENTAGE,
+            icon="mdi:speedometer"
+        )
+
+
+class AmbiSenseEffectIntensityNumber(AmbiSenseNumberEntity):
+    """Representation of the effect intensity setting."""
+
+    def __init__(self, coordinator):
+        """Initialize the entity."""
+        super().__init__(
+            coordinator=coordinator,
+            name_suffix="Effect Intensity",
+            key="effectIntensity",
+            minimum=1,
+            maximum=100,
+            step=1,
+            unit=PERCENTAGE,
+            icon="mdi:brightness-6"
+        )
 
 
 class AmbiSenseNumberEntity(CoordinatorEntity, NumberEntity):
