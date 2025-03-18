@@ -43,6 +43,7 @@ class AmbiSenseSwitchEntity(CoordinatorEntity, SwitchEntity):
         self._attr_name = name_suffix
         self._attr_unique_id = f"{coordinator.host}_{key}"
         self._key = key
+        self._is_on = False  # Local state tracking
         if icon:
             self._attr_icon = icon
             
@@ -65,7 +66,9 @@ class AmbiSenseSwitchEntity(CoordinatorEntity, SwitchEntity):
         """Return true if switch is on."""
         if not self.coordinator.data:
             return False
-        return bool(self.coordinator.data.get(self._key, False))
+        # Update local state from coordinator
+        self._is_on = bool(self.coordinator.data.get(self._key, False))
+        return self._is_on
 
     async def async_turn_on(self, **kwargs):
         """Turn the switch on."""
@@ -75,6 +78,12 @@ class AmbiSenseSwitchEntity(CoordinatorEntity, SwitchEntity):
         }
         param_name = param_mapping.get(self._key, self._key)
         await self.coordinator.async_update_settings(**{param_name: True})
+        # Optimistically update state
+        self._is_on = True
+        self.async_write_ha_state()
+        # Force refresh after a delay to get confirmed state
+        await asyncio.sleep(1)  
+        await self.coordinator.async_refresh()
 
     async def async_turn_off(self, **kwargs):
         """Turn the switch off."""
@@ -84,6 +93,12 @@ class AmbiSenseSwitchEntity(CoordinatorEntity, SwitchEntity):
         }
         param_name = param_mapping.get(self._key, self._key)
         await self.coordinator.async_update_settings(**{param_name: False})
+        # Optimistically update state 
+        self._is_on = False
+        self.async_write_ha_state()
+        # Force refresh after a delay to get confirmed state
+        await asyncio.sleep(1)
+        await self.coordinator.async_refresh()
 
 class AmbiSenseDirectionalLightSwitch(AmbiSenseSwitchEntity):
     """Representation of the directional light switch."""
@@ -96,40 +111,42 @@ class AmbiSenseDirectionalLightSwitch(AmbiSenseSwitchEntity):
             key="directionalLight",
             icon="mdi:arrow-right-thick"
         )
-
-    @property
-    def is_on(self) -> bool:
-        """Return the current state of directional light."""
-        # Explicitly log the state for debugging
-        current_state = super().is_on
-        _LOGGER.debug(f"Directional Light current state: {current_state}")
-        return current_state
+        # We'll add specific handling for this switch
+        self._attr_entity_registry_enabled_default = True
 
     async def async_turn_on(self, **kwargs):
-        """Turn on the directional light with enhanced logging."""
-        _LOGGER.debug("Attempting to turn ON Directional Light")
-        try:
-            # Explicitly use directional_light parameter
-            result = await self.coordinator.async_update_settings(directional_light=True)
-            _LOGGER.info(f"Directional Light ON request result: {result}")
-            
-            # Force a refresh to ensure state synchronization
-            await self.coordinator.async_refresh()
-        except Exception as e:
-            _LOGGER.error(f"Error turning on Directional Light: {e}")
+        """Turn on directional light with enhanced handling."""
+        _LOGGER.debug("Turning ON Directional Light")
+        success = await self.coordinator.async_update_settings(directional_light=True)
+        _LOGGER.info(f"Directional Light ON request result: {success}")
+        
+        # Set state optimistically
+        self._is_on = True
+        self.async_write_ha_state()
+        
+        # Force a refresh after a delay to confirm state
+        await asyncio.sleep(1)
+        await self.coordinator.async_refresh()
+        
+        # Debug log the state after refresh
+        _LOGGER.debug(f"After refresh, directional light state: {self.coordinator.data.get('directionalLight', 'unknown')}")
 
     async def async_turn_off(self, **kwargs):
-        """Turn off the directional light with enhanced logging."""
-        _LOGGER.debug("Attempting to turn OFF Directional Light")
-        try:
-            # Explicitly use directional_light parameter
-            result = await self.coordinator.async_update_settings(directional_light=False)
-            _LOGGER.info(f"Directional Light OFF request result: {result}")
-            
-            # Force a refresh to ensure state synchronization
-            await self.coordinator.async_refresh()
-        except Exception as e:
-            _LOGGER.error(f"Error turning off Directional Light: {e}")
+        """Turn off directional light with enhanced handling."""
+        _LOGGER.debug("Turning OFF Directional Light")
+        success = await self.coordinator.async_update_settings(directional_light=False)
+        _LOGGER.info(f"Directional Light OFF request result: {success}")
+        
+        # Set state optimistically
+        self._is_on = False
+        self.async_write_ha_state()
+        
+        # Force a refresh after a delay to confirm state
+        await asyncio.sleep(1)
+        await self.coordinator.async_refresh()
+        
+        # Debug log the state after refresh
+        _LOGGER.debug(f"After refresh, directional light state: {self.coordinator.data.get('directionalLight', 'unknown')}")
 
 class AmbiSenseBackgroundModeSwitch(AmbiSenseSwitchEntity):
     """Representation of the background mode switch."""
