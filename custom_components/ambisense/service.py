@@ -28,6 +28,14 @@ ATTR_BACKGROUND_MODE = "background_mode"
 ATTR_DIRECTIONAL_LIGHT = "directional_light"
 ATTR_LIGHT_MODE = "light_mode"
 
+# New Motion Smoothing Parameters
+ATTR_MOTION_SMOOTHING = "motion_smoothing"
+ATTR_POSITION_SMOOTHING_FACTOR = "position_smoothing_factor"
+ATTR_VELOCITY_SMOOTHING_FACTOR = "velocity_smoothing_factor"
+ATTR_PREDICTION_FACTOR = "prediction_factor"
+ATTR_POSITION_P_GAIN = "position_p_gain"
+ATTR_POSITION_I_GAIN = "position_i_gain"
+
 # Schema for the update_settings service
 UPDATE_SETTINGS_SCHEMA = vol.Schema(
     {
@@ -49,6 +57,24 @@ UPDATE_SETTINGS_SCHEMA = vol.Schema(
         vol.Optional(ATTR_BACKGROUND_MODE): cv.boolean,
         vol.Optional(ATTR_DIRECTIONAL_LIGHT): cv.boolean,
         vol.Optional(ATTR_LIGHT_MODE): vol.In(["moving", "static", "effect"]),
+        
+        # Motion Smoothing Parameters
+        vol.Optional(ATTR_MOTION_SMOOTHING): cv.boolean,
+        vol.Optional(ATTR_POSITION_SMOOTHING_FACTOR): vol.All(
+            vol.Coerce(float), vol.Range(min=0.0, max=1.0)
+        ),
+        vol.Optional(ATTR_VELOCITY_SMOOTHING_FACTOR): vol.All(
+            vol.Coerce(float), vol.Range(min=0.0, max=1.0)
+        ),
+        vol.Optional(ATTR_PREDICTION_FACTOR): vol.All(
+            vol.Coerce(float), vol.Range(min=0.0, max=1.0)
+        ),
+        vol.Optional(ATTR_POSITION_P_GAIN): vol.All(
+            vol.Coerce(float), vol.Range(min=0.0, max=1.0)
+        ),
+        vol.Optional(ATTR_POSITION_I_GAIN): vol.All(
+            vol.Coerce(float), vol.Range(min=0.0, max=0.1)
+        ),
     }
 )
 
@@ -79,6 +105,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             
         # Extract settings
         settings = {}
+        # Original settings
         if ATTR_MIN_DISTANCE in service_call.data:
             settings["min_distance"] = service_call.data[ATTR_MIN_DISTANCE]
         if ATTR_MAX_DISTANCE in service_call.data:
@@ -91,6 +118,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             settings["rgb_color"] = service_call.data[ATTR_RGB_COLOR]
         if ATTR_NUM_LEDS in service_call.data:
             settings["num_leds"] = service_call.data[ATTR_NUM_LEDS]
+        
+        # Extended settings
         if ATTR_CENTER_SHIFT in service_call.data:
             settings["center_shift"] = service_call.data[ATTR_CENTER_SHIFT]
         if ATTR_TRAIL_LENGTH in service_call.data:
@@ -99,12 +128,28 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             settings["effect_speed"] = service_call.data[ATTR_EFFECT_SPEED]
         if ATTR_EFFECT_INTENSITY in service_call.data:
             settings["effect_intensity"] = service_call.data[ATTR_EFFECT_INTENSITY]
+        
+        # Boolean settings
         if ATTR_BACKGROUND_MODE in service_call.data:
             settings["background_mode"] = service_call.data[ATTR_BACKGROUND_MODE]
         if ATTR_DIRECTIONAL_LIGHT in service_call.data:
             settings["directional_light"] = service_call.data[ATTR_DIRECTIONAL_LIGHT]
         if ATTR_LIGHT_MODE in service_call.data:
             settings["light_mode"] = service_call.data[ATTR_LIGHT_MODE]
+        
+        # Motion Smoothing Parameters
+        if ATTR_MOTION_SMOOTHING in service_call.data:
+            settings["motion_smoothing"] = service_call.data[ATTR_MOTION_SMOOTHING]
+        if ATTR_POSITION_SMOOTHING_FACTOR in service_call.data:
+            settings["position_smoothing_factor"] = service_call.data[ATTR_POSITION_SMOOTHING_FACTOR]
+        if ATTR_VELOCITY_SMOOTHING_FACTOR in service_call.data:
+            settings["velocity_smoothing_factor"] = service_call.data[ATTR_VELOCITY_SMOOTHING_FACTOR]
+        if ATTR_PREDICTION_FACTOR in service_call.data:
+            settings["prediction_factor"] = service_call.data[ATTR_PREDICTION_FACTOR]
+        if ATTR_POSITION_P_GAIN in service_call.data:
+            settings["position_p_gain"] = service_call.data[ATTR_POSITION_P_GAIN]
+        if ATTR_POSITION_I_GAIN in service_call.data:
+            settings["position_i_gain"] = service_call.data[ATTR_POSITION_I_GAIN]
             
         # Apply settings to all target devices
         for entity in target_entities:
@@ -155,6 +200,14 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                     "background_mode": coordinator.data.get("backgroundMode", False),
                     "directional_light": coordinator.data.get("directionalLight", True),
                     "light_mode": coordinator.data.get("lightMode", "moving"),
+                    
+                    # Motion Smoothing Parameters
+                    "motion_smoothing": coordinator.data.get("motionSmoothingEnabled", False),
+                    "position_smoothing_factor": coordinator.data.get("positionSmoothingFactor", 0.2),
+                    "velocity_smoothing_factor": coordinator.data.get("velocitySmoothingFactor", 0.1),
+                    "prediction_factor": coordinator.data.get("predictionFactor", 0.5),
+                    "position_p_gain": coordinator.data.get("positionPGain", 0.1),
+                    "position_i_gain": coordinator.data.get("positionIGain", 0.01),
                 }
                 
                 # Send all settings at once to force a complete update
