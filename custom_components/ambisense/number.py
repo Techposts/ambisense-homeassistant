@@ -358,7 +358,7 @@ class AmbiSensePositionPGainNumber(AmbiSenseNumberEntity):
             attribute_map={
                 'alt_keys': ['positionPGain'],
                 'service_param': 'position_p_gain',
-                'pre_converter': lambda x: round(x, 2)  # Ensure 2 decimal precision
+                'pre_converter': lambda x: round(x, 3)  # Ensure 2 decimal precision
             }
         )
 
