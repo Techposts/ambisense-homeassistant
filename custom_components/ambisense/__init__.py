@@ -161,6 +161,14 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
                 "effectSpeed": settings.get("effectSpeed", 50),
                 "effectIntensity": settings.get("effectIntensity", 100),
                 "lightMode": settings.get("lightMode", "moving"), # Default to moving mode
+                
+                # New Motion Smoothing Parameters
+                "motionSmoothingEnabled": settings.get("motionSmoothingEnabled", False),
+                "positionSmoothingFactor": settings.get("positionSmoothingFactor", 0.2),
+                "velocitySmoothingFactor": settings.get("velocitySmoothingFactor", 0.1),
+                "predictionFactor": settings.get("predictionFactor", 0.5),
+                "positionPGain": settings.get("positionPGain", 0.1),
+                "positionIGain": settings.get("positionIGain", 0.01),
             }
             
             self.available = True
@@ -204,8 +212,6 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error("Error parsing settings JSON: %s", err)
             return None
                     
-    # Add this to the `__init__.py` file in the AmbiSenseDataUpdateCoordinator class:
-    
     async def async_update_settings(self, **kwargs):
         """Update device settings with improved response handling."""
         _LOGGER.debug(f"Received settings update request: {kwargs}")
@@ -224,6 +230,12 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
             'background_mode': 'backgroundMode',
             'directional_light': 'directionalLight',
             'light_mode': 'lightMode',
+            'motion_smoothing': 'motionSmoothingEnabled',
+            'position_smoothing_factor': 'positionSmoothingFactor',
+            'velocity_smoothing_factor': 'velocitySmoothingFactor',
+            'prediction_factor': 'predictionFactor',
+            'position_p_gain': 'positionPGain',
+            'position_i_gain': 'positionIGain',
             'rgb_color': None  # Special handling for RGB
         }
         
@@ -255,10 +267,6 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.warning("No valid parameters to update")
             return False
         
-        # Explicitly log directional light changes
-        if 'directionalLight' in params:
-            _LOGGER.info(f"Setting directionalLight={params['directionalLight']}")
-    
         # Construct query string
         param_strings = [f"{k}={v}" for k, v in params.items()]
         url = f"http://{self.host}/set?{('&'.join(param_strings))}"
@@ -271,26 +279,7 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
                     response_text = await resp.text()
                     _LOGGER.debug(f"Device response: {response_text}")
                     
-                    # Try to parse JSON response
-                    try:
-                        response_data = await resp.json()
-                        # Update our local data with the response data if available
-                        if 'settings' in response_data:
-                            # Map each setting back to our data structure
-                            settings_data = response_data['settings']
-                            if 'directionalLight' in settings_data:
-                                self.data['directionalLight'] = settings_data['directionalLight'] == True or settings_data['directionalLight'] == "true"
-                                _LOGGER.debug(f"Updated directionalLight from response: {self.data['directionalLight']}")
-                            
-                            # Trigger immediate data refresh
-                            await self.async_refresh()
-                            return True
-                        
-                    except ValueError:
-                        # If JSON parsing fails, just rely on our refresh
-                        pass
-                    
-                    # Immediate refresh to get updated state
+                    # Trigger immediate data refresh
                     await self.async_refresh()
                     return True
                 else:
