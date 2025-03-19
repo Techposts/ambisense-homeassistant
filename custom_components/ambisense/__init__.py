@@ -215,15 +215,7 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
     async def async_update_settings(self, **kwargs):
         """Update device settings with improved response handling."""
         _LOGGER.debug(f"Received settings update request: {kwargs}")
-        # Detailed logging for motion smoothing parameters
-        motion_smoothing_params = {
-            'position_i_gain': 'positionIGain',
-            'position_p_gain': 'positionPGain',
-            'position_smoothing_factor': 'positionSmoothingFactor',
-            'velocity_smoothing_factor': 'velocitySmoothingFactor',
-            'prediction_factor': 'predictionFactor'
-        }
-        
+
         for ha_param, device_param in motion_smoothing_params.items():
             if ha_param in kwargs:
                 value = kwargs[ha_param]
@@ -238,25 +230,37 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
                         continue
         # Comprehensive parameter mapping
         param_map = {
-            'min_distance': 'minDist',
-            'max_distance': 'maxDist',
+            # Boolean parameters
+            'background_mode': 'backgroundMode',
+            'directional_light': 'directionLightEnabled',
+            'motion_smoothing': 'motionSmoothingEnabled',
+            
+            # Numeric parameters
+            'min_distance': 'minDistance',
+            'max_distance': 'maxDistance',
             'brightness': 'brightness',
-            'light_span': 'lightSpan',
+            'light_span': 'movingLightSpan',
             'num_leds': 'numLeds',
             'center_shift': 'centerShift',
             'trail_length': 'trailLength',
             'effect_speed': 'effectSpeed',
             'effect_intensity': 'effectIntensity',
-            'background_mode': 'backgroundMode',
-            'directional_light': 'directionalLight',
-            'light_mode': 'lightMode',
-            'motion_smoothing': 'motionSmoothingEnabled',
+            
+            # Motion smoothing parameters
+            'position_i_gain': 'positionIGain',
+            'position_p_gain': 'positionPGain',
             'position_smoothing_factor': 'positionSmoothingFactor',
             'velocity_smoothing_factor': 'velocitySmoothingFactor',
             'prediction_factor': 'predictionFactor',
-            'position_p_gain': 'positionPGain',
+        }
+    
+        # Detailed logging for motion smoothing parameters
+        motion_smoothing_params = {
             'position_i_gain': 'positionIGain',
-            'rgb_color': None  # Special handling for RGB
+            'position_p_gain': 'positionPGain',
+            'position_smoothing_factor': 'positionSmoothingFactor',
+            'velocity_smoothing_factor': 'velocitySmoothingFactor',
+            'prediction_factor': 'predictionFactor'
         }
         
         # Prepare parameters for API
