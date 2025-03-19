@@ -25,7 +25,17 @@ update_settings:
           min: 50
           max: 500
           unit_of_measurement: cm
+    background_mode:
+      name: Background Mode
+      description: Enable or disable background lighting
+      selector:
+        boolean:
 
+    directional_light:
+      name: Directional Light
+      description: Enable or disable directional light effect
+      selector:
+      
     brightness:
       name: Brightness
       description: Overall brightness of the LED strip
@@ -117,46 +127,6 @@ update_settings:
       selector:
         boolean:
 
-    position_smoothing_factor:
-      name: Position Smoothing Factor
-      description: Smoothing factor for position estimation
-      example: 0.2
-      selector:
-        number:
-          min: 0
-          max: 1
-          step: 0.01
-
-    velocity_smoothing_factor:
-      name: Velocity Smoothing Factor
-      description: Smoothing factor for velocity estimation
-      example: 0.1
-      selector:
-        number:
-          min: 0
-          max: 1
-          step: 0.01
-
-    prediction_factor:
-      name: Prediction Factor
-      description: Factor for predicting future position
-      example: 0.5
-      selector:
-        number:
-          min: 0
-          max: 1
-          step: 0.01
-
-    position_p_gain:
-      name: Position P Gain
-      description: Proportional gain for position control
-      example: 0.1
-      selector:
-        number:
-          min: 0
-          max: 1
-          step: 0.01
-
     position_i_gain:
       name: Position I Gain
       description: Integral gain for position control
@@ -166,3 +136,43 @@ update_settings:
           min: 0
           max: 0.1
           step: 0.001
+    
+    position_p_gain:
+      name: Position P Gain
+      description: Proportional gain for position control
+      example: 0.1
+      selector:
+        number:
+          min: 0
+          max: 1
+          step: 0.01
+    
+    position_smoothing_factor:
+      name: Position Smoothing Factor
+      description: Smoothing factor for position
+      example: 0.2
+      selector:
+        number:
+          min: 0
+          max: 1
+          step: 0.01
+    
+    velocity_smoothing_factor:
+      name: Velocity Smoothing Factor
+      description: Smoothing factor for velocity
+      example: 0.1
+      selector:
+        number:
+          min: 0
+          max: 1
+          step: 0.01
+    
+    prediction_factor:
+      name: Prediction Factor
+      description: Factor for predicting future position
+      example: 0.5
+      selector:
+        number:
+          min: 0
+          max: 1
+          step: 0.01
