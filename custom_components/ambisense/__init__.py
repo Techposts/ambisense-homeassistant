@@ -215,7 +215,27 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
     async def async_update_settings(self, **kwargs):
         """Update device settings with improved response handling."""
         _LOGGER.debug(f"Received settings update request: {kwargs}")
+        # Detailed logging for motion smoothing parameters
+        motion_smoothing_params = {
+            'position_i_gain': 'positionIGain',
+            'position_p_gain': 'positionPGain',
+            'position_smoothing_factor': 'positionSmoothingFactor',
+            'velocity_smoothing_factor': 'velocitySmoothingFactor',
+            'prediction_factor': 'predictionFactor'
+        }
         
+        for ha_param, device_param in motion_smoothing_params.items():
+            if ha_param in kwargs:
+                value = kwargs[ha_param]
+                _LOGGER.info(f"Updating {device_param}: {value} (HA param: {ha_param})")
+                
+                # Additional type checking and conversion
+                if isinstance(value, str):
+                    try:
+                        value = float(value)
+                    except ValueError:
+                        _LOGGER.error(f"Invalid value for {ha_param}: {value}")
+                        continue
         # Comprehensive parameter mapping
         param_map = {
             'min_distance': 'minDist',
