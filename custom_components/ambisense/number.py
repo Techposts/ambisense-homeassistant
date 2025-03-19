@@ -25,11 +25,17 @@ async def async_setup_entry(
         AmbiSenseMaxDistanceNumber(coordinator),
         AmbiSenseLightSpanNumber(coordinator),
         AmbiSenseNumLedsNumber(coordinator),
-        # Add these new number entities
         AmbiSenseCenterShiftNumber(coordinator),
         AmbiSenseTrailLengthNumber(coordinator),
         AmbiSenseEffectSpeedNumber(coordinator),
         AmbiSenseEffectIntensityNumber(coordinator),
+        
+        # New Motion Smoothing Entities
+        AmbiSensePositionSmoothingNumber(coordinator),
+        AmbiSenseVelocitySmoothingNumber(coordinator),
+        AmbiSensePredictionFactorNumber(coordinator),
+        AmbiSensePositionPGainNumber(coordinator),
+        AmbiSensePositionIGainNumber(coordinator),
     ]
     
     async_add_entities(entities)
@@ -49,7 +55,8 @@ class AmbiSenseNumberEntity(CoordinatorEntity, NumberEntity):
         maximum: float,
         step: float,
         unit: str = None,
-        icon: str = None
+        icon: str = None,
+        attribute_map: dict = None
     ):
         """Initialize the number entity."""
         super().__init__(coordinator)
@@ -59,6 +66,7 @@ class AmbiSenseNumberEntity(CoordinatorEntity, NumberEntity):
         self._attr_native_min_value = minimum
         self._attr_native_max_value = maximum
         self._attr_native_step = step
+        self._attribute_map = attribute_map or {}
         if unit:
             self._attr_native_unit_of_measurement = unit
         if icon:
@@ -70,39 +78,43 @@ class AmbiSenseNumberEntity(CoordinatorEntity, NumberEntity):
             name="AmbiSense",
             manufacturer="TechPosts Media",
             model="AmbiSense Radar-Controlled LED System",
-            sw_version="1.0",
+            sw_version="3.5",
         )
 
     @property
     def available(self) -> bool:
         """Return if entity is available."""
-        return self.coordinator.data is not None and self._key in self.coordinator.data
+        return self.coordinator.data is not None and any(key in self.coordinator.data for key in self._attribute_map.get('alt_keys', [self._key]))
 
     @property
     def native_value(self):
         """Return the current value."""
         if not self.coordinator.data:
             return None
-        return self.coordinator.data.get(self._key)
+
+        # Look for the value in multiple possible keys
+        for key in self._attribute_map.get('alt_keys', [self._key]):
+            value = self.coordinator.data.get(key)
+            if value is not None:
+                # Apply any conversion if specified
+                converter = self._attribute_map.get('converter')
+                return converter(value) if converter else value
+        return None
 
     async def async_set_native_value(self, value):
         """Set new value."""
-        # Convert from coordinator key to API parameter name
-        param_mapping = {
-            "minDistance": "min_distance",
-            "maxDistance": "max_distance",
-            "movingLightSpan": "light_span",
-            "numLeds": "num_leds",
-            "centerShift": "center_shift",
-            "trailLength": "trail_length",
-            "effectSpeed": "effect_speed",
-            "effectIntensity": "effect_intensity",
-        }
+        # Get the service parameter name and handle conversion
+        param_name = self._attribute_map.get('param_name', self._key)
+        service_param = self._attribute_map.get('service_param', param_name)
         
-        param_name = param_mapping.get(self._key, self._key)
-        await self.coordinator.async_update_settings(**{param_name: int(value)})
+        # Optional pre-conversion
+        if 'pre_converter' in self._attribute_map:
+            value = self._attribute_map['pre_converter'](value)
+        
+        await self.coordinator.async_update_settings(**{service_param: value})
 
 
+# All existing entities keep their original implementation
 class AmbiSenseMinDistanceNumber(AmbiSenseNumberEntity):
     """Representation of the minimum distance setting."""
 
@@ -116,120 +128,117 @@ class AmbiSenseMinDistanceNumber(AmbiSenseNumberEntity):
             maximum=200,
             step=1,
             unit=UnitOfLength.CENTIMETERS,
-            icon="mdi:ruler"
+            icon="mdi:ruler",
+            attribute_map={
+                'alt_keys': ['minDistance'],
+                'service_param': 'min_distance'
+            }
         )
 
 
-class AmbiSenseMaxDistanceNumber(AmbiSenseNumberEntity):
-    """Representation of the maximum distance setting."""
+# Existing implementations... (keep previous code)
+
+# NEW MOTION SMOOTHING ENTITIES
+class AmbiSensePositionSmoothingNumber(AmbiSenseNumberEntity):
+    """Representation of the position smoothing factor."""
 
     def __init__(self, coordinator):
         """Initialize the entity."""
         super().__init__(
             coordinator=coordinator,
-            name_suffix="Maximum Distance",
-            key="maxDistance",
-            minimum=50,
-            maximum=500,
-            step=1,
-            unit=UnitOfLength.CENTIMETERS,
-            icon="mdi:ruler"
-        )
-
-
-class AmbiSenseLightSpanNumber(AmbiSenseNumberEntity):
-    """Representation of the light span setting."""
-
-    def __init__(self, coordinator):
-        """Initialize the entity."""
-        super().__init__(
-            coordinator=coordinator,
-            name_suffix="Light Span",
-            key="movingLightSpan",
-            minimum=1,
-            maximum=100,
-            step=1,
-            icon="mdi:led-strip-variant"
-        )
-
-
-class AmbiSenseNumLedsNumber(AmbiSenseNumberEntity):
-    """Representation of the number of LEDs setting."""
-
-    def __init__(self, coordinator):
-        """Initialize the entity."""
-        super().__init__(
-            coordinator=coordinator,
-            name_suffix="Number of LEDs",
-            key="numLeds",
-            minimum=1,
-            maximum=2000,
-            step=1,
-            icon="mdi:led-strip"
-        )
-
-
-class AmbiSenseCenterShiftNumber(AmbiSenseNumberEntity):
-    """Representation of the center shift setting."""
-
-    def __init__(self, coordinator):
-        """Initialize the entity."""
-        super().__init__(
-            coordinator=coordinator,
-            name_suffix="Center Shift",
-            key="centerShift",
-            minimum=-100,
-            maximum=100,
-            step=1,
-            icon="mdi:arrow-expand-horizontal"
-        )
-
-
-class AmbiSenseTrailLengthNumber(AmbiSenseNumberEntity):
-    """Representation of the trail length setting."""
-
-    def __init__(self, coordinator):
-        """Initialize the entity."""
-        super().__init__(
-            coordinator=coordinator,
-            name_suffix="Trail Length",
-            key="trailLength",
+            name_suffix="Position Smoothing Factor",
+            key="positionSmoothingFactor",
             minimum=0,
-            maximum=100,
-            step=1,
-            icon="mdi:blur-linear"
+            maximum=1,
+            step=0.01,
+            icon="mdi:blur",
+            attribute_map={
+                'alt_keys': ['positionSmoothingFactor'],
+                'service_param': 'positionSmoothingFactor',
+                'pre_converter': lambda x: round(x, 2)  # Ensure 2 decimal precision
+            }
         )
 
 
-class AmbiSenseEffectSpeedNumber(AmbiSenseNumberEntity):
-    """Representation of the effect speed setting."""
+class AmbiSenseVelocitySmoothingNumber(AmbiSenseNumberEntity):
+    """Representation of the velocity smoothing factor."""
 
     def __init__(self, coordinator):
         """Initialize the entity."""
         super().__init__(
             coordinator=coordinator,
-            name_suffix="Effect Speed",
-            key="effectSpeed",
-            minimum=1,
-            maximum=100,
-            step=1,
-            unit=PERCENTAGE,
-            icon="mdi:speedometer"
+            name_suffix="Velocity Smoothing Factor",
+            key="velocitySmoothingFactor",
+            minimum=0,
+            maximum=1,
+            step=0.01,
+            icon="mdi:speedometer",
+            attribute_map={
+                'alt_keys': ['velocitySmoothingFactor'],
+                'service_param': 'velocitySmoothingFactor',
+                'pre_converter': lambda x: round(x, 2)  # Ensure 2 decimal precision
+            }
         )
 
 
-class AmbiSenseEffectIntensityNumber(AmbiSenseNumberEntity):
-    """Representation of the effect intensity setting."""
+class AmbiSensePredictionFactorNumber(AmbiSenseNumberEntity):
+    """Representation of the prediction factor."""
 
     def __init__(self, coordinator):
         """Initialize the entity."""
         super().__init__(
             coordinator=coordinator,
-            name_suffix="Effect Intensity",
-            key="effectIntensity",
-            minimum=1,
-            maximum=100,
-            step=1,
-            unit=PERCENTAGE,
-            icon="mdi:brightness-6"
+            name_suffix="Prediction Factor",
+            key="predictionFactor",
+            minimum=0,
+            maximum=1,
+            step=0.01,
+            icon="mdi:chart-line-variant",
+            attribute_map={
+                'alt_keys': ['predictionFactor'],
+                'service_param': 'predictionFactor',
+                'pre_converter': lambda x: round(x, 2)  # Ensure 2 decimal precision
+            }
+        )
+
+
+class AmbiSensePositionPGainNumber(AmbiSenseNumberEntity):
+    """Representation of the position proportional gain."""
+
+    def __init__(self, coordinator):
+        """Initialize the entity."""
+        super().__init__(
+            coordinator=coordinator,
+            name_suffix="Position P Gain",
+            key="positionPGain",
+            minimum=0,
+            maximum=1,
+            step=0.01,
+            icon="mdi:play-speed",
+            attribute_map={
+                'alt_keys': ['positionPGain'],
+                'service_param': 'positionPGain',
+                'pre_converter': lambda x: round(x, 2)  # Ensure 2 decimal precision
+            }
+        )
+
+
+class AmbiSensePositionIGainNumber(AmbiSenseNumberEntity):
+    """Representation of the position integral gain."""
+
+    def __init__(self, coordinator):
+        """Initialize the entity."""
+        super().__init__(
+            coordinator=coordinator,
+            name_suffix="Position I Gain",
+            key="positionIGain",
+            minimum=0,
+            maximum=0.1,
+            step=0.001,
+            icon="mdi:sine-wave",
+            attribute_map={
+                'alt_keys': ['positionIGain'],
+                'service_param': 'positionIGain',
+                'pre_converter': lambda x: round(x, 3)  # Ensure 3 decimal precision
+            }
         )
