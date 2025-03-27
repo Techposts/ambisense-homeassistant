@@ -46,7 +46,7 @@ class AmbiSenseDistanceSensor(CoordinatorEntity, SensorEntity):
             name=coordinator.name,
             manufacturer="TechPosts Media",
             model="AmbiSense Radar-Controlled LED System",
-            sw_version="1.0",
+            sw_version="4.0.3",  # Updated to match firmware version
         )
 
     @property
