@@ -6,6 +6,7 @@ https://github.com/techposts/ambisense-homeassistant
 import asyncio
 import logging
 import aiohttp
+import json
 import voluptuous as vol
 from datetime import timedelta
 
@@ -38,6 +39,9 @@ from homeassistant.helpers.update_coordinator import (
 )
 from homeassistant.exceptions import ConfigEntryNotReady
 import homeassistant.helpers.config_validation as cv
+
+from .motion_handler import MotionSmoothingHandler
+from .effect_handler import EffectParameterHandler
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -115,6 +119,10 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
         self.session = async_get_clientsession(hass)
         self.data = {}
         self.available = True
+        
+        # Initialize handlers for specialized endpoints
+        self.motion_handler = MotionSmoothingHandler(host, self.session)
+        self.effect_handler = EffectParameterHandler(host, self.session)
 
         super().__init__(
             hass,
@@ -155,12 +163,13 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
                 # Add any other parameters that are returned from the settings API
                 # Using get() with defaults in case they're not in the API response
                 "backgroundMode": settings.get("backgroundMode", False),
-                "directionalLight": settings.get("directionalLight", True),
+                "directionLightEnabled": settings.get("directionLightEnabled", False),
+                "directionalLight": settings.get("directionLightEnabled", False),  # Alias for HA compatibility
                 "centerShift": settings.get("centerShift", 0),
                 "trailLength": settings.get("trailLength", 5),
                 "effectSpeed": settings.get("effectSpeed", 50),
                 "effectIntensity": settings.get("effectIntensity", 100),
-                "lightMode": settings.get("lightMode", "moving"), # Default to moving mode
+                "lightMode": settings.get("lightMode", 0),
                 
                 # New Motion Smoothing Parameters
                 "motionSmoothingEnabled": settings.get("motionSmoothingEnabled", False),
@@ -201,114 +210,96 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
         try:
             async with self.session.get(f"http://{self.host}/settings", timeout=5) as resp:
                 if resp.status == 200:
-                    return await resp.json()
+                    json_text = await resp.text()
+                    # Debug the raw JSON
+                    _LOGGER.debug(f"Raw settings: {json_text}")
+                    
+                    # Parse the JSON with error handling
+                    try:
+                        settings = json.loads(json_text)
+                        
+                        # Map directionLightEnabled to directionalLight for consistency
+                        if "directionLightEnabled" in settings and "directionalLight" not in settings:
+                            settings["directionalLight"] = settings["directionLightEnabled"]
+                        
+                        return settings
+                    except json.JSONDecodeError as err:
+                        _LOGGER.error(f"Error parsing settings JSON: {err}")
+                        return None
                 else:
                     _LOGGER.error("Failed to get settings, status: %s", resp.status)
                     return None
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             _LOGGER.debug("Error fetching settings: %s", err)
             return None
-        except ValueError as err:
-            _LOGGER.error("Error parsing settings JSON: %s", err)
-            return None
                     
     async def async_update_settings(self, **kwargs):
         """Update device settings with improved response handling."""
         _LOGGER.debug(f"Received settings update request: {kwargs}")
-
-        for ha_param, device_param in motion_smoothing_params.items():
-            if ha_param in kwargs:
-                value = kwargs[ha_param]
-                _LOGGER.info(f"Updating {device_param}: {value} (HA param: {ha_param})")
-                
-                # Additional type checking and conversion
-                if isinstance(value, str):
-                    try:
-                        value = float(value)
-                    except ValueError:
-                        _LOGGER.error(f"Invalid value for {ha_param}: {value}")
-                        continue
-        # Comprehensive parameter mapping
-        param_map = {
-            # Boolean parameters
-            'background_mode': 'backgroundMode',
-            'directional_light': 'directionLightEnabled',
-            'motion_smoothing': 'motionSmoothingEnabled',
+        
+        # Initialize successful flag
+        success = True
+        
+        # Special handling for motion smoothing
+        if 'motion_smoothing' in kwargs:
+            motion_success = await self.motion_handler.set_motion_smoothing_enabled(
+                kwargs.pop('motion_smoothing')
+            )
+            success = success and motion_success
+        
+        # Handle motion smoothing parameters
+        for param in ['position_smoothing_factor', 'velocity_smoothing_factor', 
+                     'prediction_factor', 'position_p_gain', 'position_i_gain']:
+            if param in kwargs:
+                value = kwargs.pop(param)
+                param_success = await self.motion_handler.set_motion_smoothing_param(param, value)
+                success = success and param_success
+        
+        # Handle effect parameters
+        if 'effect_speed' in kwargs:
+            speed_success = await self.effect_handler.set_effect_speed(
+                kwargs.pop('effect_speed')
+            )
+            success = success and speed_success
             
-            # Numeric parameters
-            'min_distance': 'minDistance',
-            'max_distance': 'maxDistance',
-            'brightness': 'brightness',
-            'light_span': 'movingLightSpan',
-            'num_leds': 'numLeds',
-            'center_shift': 'centerShift',
-            'trail_length': 'trailLength',
-            'effect_speed': 'effectSpeed',
-            'effect_intensity': 'effectIntensity',
-            
-            # Motion smoothing parameters
-            'position_i_gain': 'positionIGain',
-            'position_p_gain': 'positionPGain',
-            'position_smoothing_factor': 'positionSmoothingFactor',
-            'velocity_smoothing_factor': 'velocitySmoothingFactor',
-            'prediction_factor': 'predictionFactor',
-        }
-    
-        # Detailed logging for motion smoothing parameters
-        motion_smoothing_params = {
-            'position_i_gain': 'positionIGain',
-            'position_p_gain': 'positionPGain',
-            'position_smoothing_factor': 'positionSmoothingFactor',
-            'velocity_smoothing_factor': 'velocitySmoothingFactor',
-            'prediction_factor': 'predictionFactor'
-        }
+        if 'effect_intensity' in kwargs:
+            intensity_success = await self.effect_handler.set_effect_intensity(
+                kwargs.pop('effect_intensity')
+            )
+            success = success and intensity_success
         
-        # Prepare parameters for API
-        params = {}
+        # Handle light mode
+        if 'light_mode' in kwargs:
+            mode_success = await self.effect_handler.set_light_mode(
+                kwargs.pop('light_mode')
+            )
+            success = success and mode_success
         
-        # Special handling for RGB color
-        if 'rgb_color' in kwargs:
-            r, g, b = kwargs['rgb_color']
-            params['redValue'] = r
-            params['greenValue'] = g
-            params['blueValue'] = b
-        
-        # Process other parameters
-        for ha_param, device_param in param_map.items():
-            if ha_param in kwargs and device_param is not None:
-                value = kwargs[ha_param]
-                
-                # Convert boolean to 1/0 for certain parameters
+        # Handle any remaining parameters with standard API
+        if kwargs:
+            # Special handling for boolean values
+            for key, value in list(kwargs.items()):
                 if isinstance(value, bool):
-                    value = 1 if value else 0
-                
-                params[device_param] = value
-        
-        _LOGGER.debug(f"Mapped parameters for API: {params}")
-        
-        # Construct URL with parameters
-        if not params:
-            _LOGGER.warning("No valid parameters to update")
-            return False
-        
-        # Construct query string
-        param_strings = [f"{k}={v}" for k, v in params.items()]
-        url = f"http://{self.host}/set?{('&'.join(param_strings))}"
-        
-        _LOGGER.debug(f"Sending update request to: {url}")
-        
-        try:
-            async with self.session.get(url, timeout=5) as resp:
-                if resp.status == 200:
-                    response_text = await resp.text()
-                    _LOGGER.debug(f"Device response: {response_text}")
+                    kwargs[key] = "true" if value else "false"
                     
-                    # Trigger immediate data refresh
-                    await self.async_refresh()
-                    return True
-                else:
-                    _LOGGER.error(f"Failed to update settings. Status: {resp.status}")
-                    return False
-        except Exception as err:
-            _LOGGER.error(f"Error updating settings: {err}")
-            return False
+            # Construct URL with parameters
+            param_strings = [f"{k}={v}" for k, v in kwargs.items()]
+            url = f"http://{self.host}/set?{('&'.join(param_strings))}"
+            
+            _LOGGER.debug(f"Sending update request to: {url}")
+            
+            try:
+                async with self.session.get(url, timeout=5) as resp:
+                    if resp.status == 200:
+                        response_text = await resp.text()
+                        _LOGGER.debug(f"Device response: {response_text}")
+                    else:
+                        _LOGGER.error(f"Failed to update settings. Status: {resp.status}")
+                        success = False
+            except Exception as err:
+                _LOGGER.error(f"Error updating settings: {err}")
+                success = False
+        
+        # Trigger a refresh after settings changes
+        await self.async_refresh()
+        return success
