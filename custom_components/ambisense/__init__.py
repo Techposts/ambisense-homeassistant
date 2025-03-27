@@ -275,15 +275,43 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
             )
             success = success and mode_success
         
+        # Map parameter names from HA to firmware format
+        param_mapping = {
+            'min_distance': 'minDist',
+            'max_distance': 'maxDist',
+            'light_span': 'lightSpan',
+            'num_leds': 'numLeds',
+            'center_shift': 'centerShift',
+            'trail_length': 'trailLength',
+            'background_mode': 'backgroundMode',
+            'directional_light': 'directionLight',
+            'rgb_color': None,  # Special handling for RGB
+        }
+        
+        # Transform parameters to the names expected by the firmware
+        firmware_params = {}
+        for key, value in kwargs.items():
+            # Special handling for RGB color
+            if key == 'rgb_color' and isinstance(value, list) and len(value) == 3:
+                firmware_params['redValue'] = value[0]
+                firmware_params['greenValue'] = value[1]
+                firmware_params['blueValue'] = value[2]
+                continue
+                
+            # Use the mapped parameter name if available
+            firmware_key = param_mapping.get(key, key)
+            if firmware_key:
+                firmware_params[firmware_key] = value
+        
         # Handle any remaining parameters with standard API
-        if kwargs:
+        if firmware_params:
             # Special handling for boolean values
-            for key, value in list(kwargs.items()):
+            for key, value in list(firmware_params.items()):
                 if isinstance(value, bool):
-                    kwargs[key] = "true" if value else "false"
+                    firmware_params[key] = "true" if value else "false"
                     
             # Construct URL with parameters
-            param_strings = [f"{k}={v}" for k, v in kwargs.items()]
+            param_strings = [f"{k}={v}" for k, v in firmware_params.items()]
             url = f"http://{self.host}/set?{('&'.join(param_strings))}"
             
             _LOGGER.debug(f"Sending update request to: {url}")
@@ -294,7 +322,7 @@ class AmbiSenseDataUpdateCoordinator(DataUpdateCoordinator):
                         response_text = await resp.text()
                         _LOGGER.debug(f"Device response: {response_text}")
                     else:
-                        _LOGGER.error(f"Failed to update settings. Status: {resp.status}")
+                        _LOGGER.error(f"Failed to update settings. Status: {resp.status}, Response: {await resp.text()}")
                         success = False
             except Exception as err:
                 _LOGGER.error(f"Error updating settings: {err}")
