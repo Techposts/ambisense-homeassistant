@@ -12,15 +12,22 @@ from . import DOMAIN, AmbiSenseDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-# Mapping between numeric modes and descriptive names
+# Updated mapping between numeric modes and descriptive names based on firmware
 MODE_MAP = {
     0: "Standard",
     1: "Rainbow",
     2: "Color Wave", 
     3: "Breathing", 
-    4: "Solid"
+    4: "Solid",
+    5: "Comet Trail",
+    6: "Pulse Waves",
+    7: "Fire Effect",
+    8: "Theater Chase",
+    9: "Dual Scan",
+    10: "Motion Particles"
 }
 
+# Create reverse mapping for lookup
 REVERSE_MODE_MAP = {v: k for k, v in MODE_MAP.items()}
 
 async def async_setup_entry(
@@ -50,13 +57,13 @@ class AmbiSenseLightModeSelect(CoordinatorEntity, SelectEntity):
         self._attr_unique_id = f"{coordinator.host}_light_mode"
         self._attr_name = "Light Mode"
         
-        # Device info for device registry
+        # Device info for device registry with updated version
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.host)},
             name="AmbiSense",
             manufacturer="TechPosts Media",
             model="AmbiSense Radar-Controlled LED System",
-            sw_version="3.1",
+            sw_version="4.0.3",  # Updated to match firmware version
         )
 
     @property
