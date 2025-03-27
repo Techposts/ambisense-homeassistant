@@ -39,7 +39,8 @@ class AmbiSenseSwitchEntity(CoordinatorEntity, SwitchEntity):
         name_suffix: str,
         key: str,
         icon: str = None,
-        service_param: str = None
+        service_param: str = None,
+        firmware_param: str = None
     ):
         """Initialize the switch entity."""
         super().__init__(coordinator)
@@ -47,6 +48,7 @@ class AmbiSenseSwitchEntity(CoordinatorEntity, SwitchEntity):
         self._attr_name = name_suffix
         self._key = key
         self._service_param = service_param or key
+        self._firmware_param = firmware_param or self._service_param
         if icon:
             self._attr_icon = icon
             
@@ -74,24 +76,42 @@ class AmbiSenseSwitchEntity(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs):
         """Turn the switch on."""
-        await self.coordinator.async_update_settings(**{self._service_param: True})
+        # Try using specific handler if available
+        if self._service_param == 'background_mode' and hasattr(self.coordinator, 'effect_handler'):
+            await self.coordinator.effect_handler.set_background_mode(True)
+        elif self._service_param == 'directional_light' and hasattr(self.coordinator, 'effect_handler'):
+            await self.coordinator.effect_handler.set_directional_light(True)
+        elif self._service_param == 'motion_smoothing' and hasattr(self.coordinator, 'motion_handler'):
+            await self.coordinator.motion_handler.set_motion_smoothing_enabled(True)
+        else:
+            # Fallback to standard method
+            await self.coordinator.async_update_settings(**{self._service_param: True})
         
         # Optimistically update state
         self.async_write_ha_state()
         
         # Force a state refresh
-        await asyncio.sleep(2)
+        await asyncio.sleep(1)
         await self.coordinator.async_refresh()
 
     async def async_turn_off(self, **kwargs):
         """Turn the switch off."""
-        await self.coordinator.async_update_settings(**{self._service_param: False})
+        # Try using specific handler if available
+        if self._service_param == 'background_mode' and hasattr(self.coordinator, 'effect_handler'):
+            await self.coordinator.effect_handler.set_background_mode(False)
+        elif self._service_param == 'directional_light' and hasattr(self.coordinator, 'effect_handler'):
+            await self.coordinator.effect_handler.set_directional_light(False)
+        elif self._service_param == 'motion_smoothing' and hasattr(self.coordinator, 'motion_handler'):
+            await self.coordinator.motion_handler.set_motion_smoothing_enabled(False)
+        else:
+            # Fallback to standard method
+            await self.coordinator.async_update_settings(**{self._service_param: False})
         
         # Optimistically update state
         self.async_write_ha_state()
         
         # Force a state refresh
-        await asyncio.sleep(2)
+        await asyncio.sleep(1)
         await self.coordinator.async_refresh()
 
 
@@ -105,7 +125,8 @@ class AmbiSenseBackgroundModeSwitch(AmbiSenseSwitchEntity):
             name_suffix="Background Mode",
             key="backgroundMode",
             icon="mdi:lightbulb-group",
-            service_param="background_mode"
+            service_param="background_mode",
+            firmware_param="backgroundMode"
         )
 
 
@@ -119,7 +140,8 @@ class AmbiSenseDirectionalLightSwitch(AmbiSenseSwitchEntity):
             name_suffix="Directional Light",
             key="directionalLight",
             icon="mdi:arrow-right-thick",
-            service_param="directional_light"
+            service_param="directional_light",
+            firmware_param="directionLight"  # Note the different name in firmware
         )
 
 
@@ -133,5 +155,6 @@ class AmbiSenseMotionSmoothingSwitch(AmbiSenseSwitchEntity):
             name_suffix="Motion Smoothing",
             key="motionSmoothingEnabled",
             icon="mdi:motion-sensor",
-            service_param="motion_smoothing"
+            service_param="motion_smoothing",
+            firmware_param="motionSmoothing"  # May be different in firmware
         )
