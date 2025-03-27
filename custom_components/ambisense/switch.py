@@ -22,7 +22,7 @@ async def async_setup_entry(
     entities = [
         AmbiSenseBackgroundModeSwitch(coordinator),
         AmbiSenseDirectionalLightSwitch(coordinator),
-        AmbiSenseMotionSmoothingSwitch(coordinator),  # New switch added
+        AmbiSenseMotionSmoothingSwitch(coordinator),  # Motion smoothing switch
     ]
     
     async_add_entities(entities)
@@ -56,7 +56,7 @@ class AmbiSenseSwitchEntity(CoordinatorEntity, SwitchEntity):
             name="AmbiSense",
             manufacturer="TechPosts Media",
             model="AmbiSense Radar-Controlled LED System",
-            sw_version="3.5",
+            sw_version="4.0.3",  # Updated version
         )
 
     @property
