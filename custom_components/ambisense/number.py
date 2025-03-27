@@ -78,7 +78,7 @@ class AmbiSenseNumberEntity(CoordinatorEntity, NumberEntity):
             name="AmbiSense",
             manufacturer="TechPosts Media",
             model="AmbiSense Radar-Controlled LED System",
-            sw_version="3.5",
+            sw_version="4.0.3",  # Updated version
         )
 
     @property
@@ -278,7 +278,7 @@ class AmbiSenseEffectIntensityNumber(AmbiSenseNumberEntity):
         )
 
 
-# NEW MOTION SMOOTHING ENTITIES
+# MOTION SMOOTHING ENTITIES
 class AmbiSensePositionSmoothingNumber(AmbiSenseNumberEntity):
     """Representation of the position smoothing factor."""
 
@@ -358,7 +358,7 @@ class AmbiSensePositionPGainNumber(AmbiSenseNumberEntity):
             attribute_map={
                 'alt_keys': ['positionPGain'],
                 'service_param': 'position_p_gain',
-                'pre_converter': lambda x: round(x, 3)  # Ensure 2 decimal precision
+                'pre_converter': lambda x: round(x, 2)  # Ensure 2 decimal precision
             }
         )
 
