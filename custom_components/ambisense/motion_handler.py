@@ -25,7 +25,8 @@ class MotionSmoothingHandler:
                     _LOGGER.debug(f"Successfully {'enabled' if enabled else 'disabled'} motion smoothing")
                     return True
                 else:
-                    _LOGGER.error(f"Failed to update motion smoothing. Status: {resp.status}")
+                    response_text = await resp.text()
+                    _LOGGER.error(f"Failed to update motion smoothing. Status: {resp.status}, Response: {response_text}")
                     return False
         except Exception as err:
             _LOGGER.error(f"Error updating motion smoothing: {err}")
@@ -56,21 +57,31 @@ class MotionSmoothingHandler:
             
         url = f"http://{self.host}/setMotionSmoothingParam?param={device_param}&value={formatted_value}"
         
+        _LOGGER.debug(f"Setting motion parameter: {url}")
+        
         try:
             async with self.session.get(url, timeout=5) as resp:
                 if resp.status == 200:
                     try:
-                        response_data = await resp.json()
-                        if response_data.get("status") == "success":
-                            _LOGGER.debug(f"Successfully updated {device_param} to {formatted_value}")
+                        response_text = await resp.text()
+                        _LOGGER.debug(f"Device response for {device_param}: {response_text}")
+                        
+                        # Try parsing as JSON
+                        try:
+                            response_data = json.loads(response_text)
+                            if response_data.get("status") == "success":
+                                _LOGGER.debug(f"Successfully updated {device_param} to {formatted_value}")
+                                return True
+                            else:
+                                _LOGGER.warning(f"Device returned non-success status for {device_param}: {response_data}")
+                                return False
+                        except json.JSONDecodeError:
+                            # If not valid JSON, just check status code
+                            _LOGGER.debug(f"Successfully updated {device_param} to {formatted_value} (non-JSON response)")
                             return True
-                        else:
-                            _LOGGER.warning(f"Device returned non-success status for {device_param}: {response_data}")
-                            return False
-                    except json.JSONDecodeError:
-                        # If not valid JSON, just check status code
-                        _LOGGER.debug(f"Successfully updated {device_param} to {formatted_value} (non-JSON response)")
-                        return True
+                    except Exception as err:
+                        _LOGGER.error(f"Error processing response for {device_param}: {err}")
+                        return False
                 else:
                     response_text = await resp.text()
                     _LOGGER.error(f"Failed to update {device_param}. Status: {resp.status}, Response: {response_text}")
