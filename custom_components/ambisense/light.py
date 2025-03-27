@@ -85,24 +85,72 @@ class AmbiSenseLightEntity(CoordinatorEntity, LightEntity):
         
         if ATTR_BRIGHTNESS in kwargs:
             settings["brightness"] = kwargs[ATTR_BRIGHTNESS]
+            _LOGGER.debug(f"Setting brightness to {kwargs[ATTR_BRIGHTNESS]}")
             
         if ATTR_RGB_COLOR in kwargs:
             # Instead of using rgb_color parameter, break it down into individual components
             # This matches how the firmware expects to receive color values
             r, g, b = kwargs[ATTR_RGB_COLOR]
+            
+            # Use direct firmware parameter names
             settings["redValue"] = r
             settings["greenValue"] = g
             settings["blueValue"] = b
             _LOGGER.debug(f"Setting RGB color to: R={r}, G={g}, B={b}")
         
         if settings:
-            await self.coordinator.async_update_settings(**settings)
+            # Send the parameters directly with their firmware names
+            firmware_params = {}
+            
+            # Map parameters to firmware names
+            if "brightness" in settings:
+                firmware_params["brightness"] = settings["brightness"]
+            
+            # RGB values are already using firmware names
+            if "redValue" in settings:
+                firmware_params["redValue"] = settings["redValue"]
+                firmware_params["greenValue"] = settings["greenValue"]
+                firmware_params["blueValue"] = settings["blueValue"]
+            
+            # Construct URL with parameters
+            param_strings = [f"{k}={v}" for k, v in firmware_params.items()]
+            url = f"http://{self.coordinator.host}/set?{('&'.join(param_strings))}"
+            
+            _LOGGER.debug(f"Light update URL: {url}")
+            
+            try:
+                session = self.coordinator.session
+                async with session.get(url, timeout=5) as resp:
+                    if resp.status == 200:
+                        response_text = await resp.text()
+                        _LOGGER.debug(f"Device response for light update: {response_text}")
+                    else:
+                        _LOGGER.error(f"Failed to update light. Status: {resp.status}")
+            except Exception as err:
+                _LOGGER.error(f"Error updating light: {err}")
+            
             # Force a refresh to get updated state
             await self.coordinator.async_refresh()
 
     async def async_turn_off(self, **kwargs):
         """Turn the light off (by setting brightness to 0)."""
         self._is_on = False
-        await self.coordinator.async_update_settings(brightness=0)
+        
+        # Use direct firmware parameter
+        url = f"http://{self.coordinator.host}/set?brightness=0"
+        
+        _LOGGER.debug(f"Light off URL: {url}")
+        
+        try:
+            session = self.coordinator.session
+            async with session.get(url, timeout=5) as resp:
+                if resp.status == 200:
+                    response_text = await resp.text()
+                    _LOGGER.debug(f"Device response for light off: {response_text}")
+                else:
+                    _LOGGER.error(f"Failed to turn off light. Status: {resp.status}")
+        except Exception as err:
+            _LOGGER.error(f"Error turning off light: {err}")
+        
         # Force a refresh to get updated state
         await self.coordinator.async_refresh()
