@@ -87,12 +87,22 @@ class AmbiSenseLightEntity(CoordinatorEntity, LightEntity):
             settings["brightness"] = kwargs[ATTR_BRIGHTNESS]
             
         if ATTR_RGB_COLOR in kwargs:
-            settings["rgb_color"] = kwargs[ATTR_RGB_COLOR]
-            
+            # Instead of using rgb_color parameter, break it down into individual components
+            # This matches how the firmware expects to receive color values
+            r, g, b = kwargs[ATTR_RGB_COLOR]
+            settings["redValue"] = r
+            settings["greenValue"] = g
+            settings["blueValue"] = b
+            _LOGGER.debug(f"Setting RGB color to: R={r}, G={g}, B={b}")
+        
         if settings:
             await self.coordinator.async_update_settings(**settings)
+            # Force a refresh to get updated state
+            await self.coordinator.async_refresh()
 
     async def async_turn_off(self, **kwargs):
         """Turn the light off (by setting brightness to 0)."""
         self._is_on = False
         await self.coordinator.async_update_settings(brightness=0)
+        # Force a refresh to get updated state
+        await self.coordinator.async_refresh()
