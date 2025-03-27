@@ -111,6 +111,24 @@ class AmbiSenseNumberEntity(CoordinatorEntity, NumberEntity):
         if 'pre_converter' in self._attribute_map:
             value = self._attribute_map['pre_converter'](value)
         
+        # Log the parameter update
+        _LOGGER.debug(f"Setting {service_param} to {value} (entity: {self._attr_name})")
+        
+        # Special direct handling for certain parameters
+        if service_param == 'center_shift':
+            # Use the effect handler for center shift
+            if hasattr(self.coordinator, 'effect_handler'):
+                await self.coordinator.effect_handler.set_center_shift(value)
+                await self.coordinator.async_refresh()
+                return
+        elif service_param == 'trail_length':
+            # Use the effect handler for trail length
+            if hasattr(self.coordinator, 'effect_handler'):
+                await self.coordinator.effect_handler.set_trail_length(value)
+                await self.coordinator.async_refresh()
+                return
+        
+        # Standard parameter update
         await self.coordinator.async_update_settings(**{service_param: value})
 
 
@@ -130,7 +148,8 @@ class AmbiSenseMinDistanceNumber(AmbiSenseNumberEntity):
             icon="mdi:ruler",
             attribute_map={
                 'alt_keys': ['minDistance'],
-                'service_param': 'min_distance'
+                'service_param': 'min_distance',
+                'firmware_param': 'minDist'  # Added for reference
             }
         )
 
@@ -151,7 +170,8 @@ class AmbiSenseMaxDistanceNumber(AmbiSenseNumberEntity):
             icon="mdi:ruler",
             attribute_map={
                 'alt_keys': ['maxDistance'],
-                'service_param': 'max_distance'
+                'service_param': 'max_distance',
+                'firmware_param': 'maxDist'  # Added for reference
             }
         )
 
@@ -171,7 +191,8 @@ class AmbiSenseLightSpanNumber(AmbiSenseNumberEntity):
             icon="mdi:led-strip-variant",
             attribute_map={
                 'alt_keys': ['movingLightSpan'],
-                'service_param': 'light_span'
+                'service_param': 'light_span',
+                'firmware_param': 'lightSpan'  # Added for reference
             }
         )
 
@@ -191,7 +212,8 @@ class AmbiSenseNumLedsNumber(AmbiSenseNumberEntity):
             icon="mdi:led-strip",
             attribute_map={
                 'alt_keys': ['numLeds'],
-                'service_param': 'num_leds'
+                'service_param': 'num_leds',
+                'firmware_param': 'numLeds'  # Added for reference
             }
         )
 
@@ -211,7 +233,8 @@ class AmbiSenseCenterShiftNumber(AmbiSenseNumberEntity):
             icon="mdi:arrow-expand-horizontal",
             attribute_map={
                 'alt_keys': ['centerShift'],
-                'service_param': 'center_shift'
+                'service_param': 'center_shift',
+                'firmware_param': 'centerShift'  # Added for reference
             }
         )
 
@@ -231,7 +254,8 @@ class AmbiSenseTrailLengthNumber(AmbiSenseNumberEntity):
             icon="mdi:blur-linear",
             attribute_map={
                 'alt_keys': ['trailLength'],
-                'service_param': 'trail_length'
+                'service_param': 'trail_length',
+                'firmware_param': 'trailLength'  # Added for reference
             }
         )
 
@@ -252,7 +276,8 @@ class AmbiSenseEffectSpeedNumber(AmbiSenseNumberEntity):
             icon="mdi:speedometer",
             attribute_map={
                 'alt_keys': ['effectSpeed'],
-                'service_param': 'effect_speed'
+                'service_param': 'effect_speed',
+                'firmware_param': 'effectSpeed'  # Added for reference
             }
         )
 
@@ -273,7 +298,8 @@ class AmbiSenseEffectIntensityNumber(AmbiSenseNumberEntity):
             icon="mdi:brightness-6",
             attribute_map={
                 'alt_keys': ['effectIntensity'],
-                'service_param': 'effect_intensity'
+                'service_param': 'effect_intensity',
+                'firmware_param': 'effectIntensity'  # Added for reference
             }
         )
 
@@ -295,6 +321,7 @@ class AmbiSensePositionSmoothingNumber(AmbiSenseNumberEntity):
             attribute_map={
                 'alt_keys': ['positionSmoothingFactor'],
                 'service_param': 'position_smoothing_factor',
+                'firmware_param': 'positionSmoothingFactor',  # Added for reference
                 'pre_converter': lambda x: round(x, 2)  # Ensure 2 decimal precision
             }
         )
@@ -316,6 +343,7 @@ class AmbiSenseVelocitySmoothingNumber(AmbiSenseNumberEntity):
             attribute_map={
                 'alt_keys': ['velocitySmoothingFactor'],
                 'service_param': 'velocity_smoothing_factor',
+                'firmware_param': 'velocitySmoothingFactor',  # Added for reference
                 'pre_converter': lambda x: round(x, 2)  # Ensure 2 decimal precision
             }
         )
@@ -337,6 +365,7 @@ class AmbiSensePredictionFactorNumber(AmbiSenseNumberEntity):
             attribute_map={
                 'alt_keys': ['predictionFactor'],
                 'service_param': 'prediction_factor',
+                'firmware_param': 'predictionFactor',  # Added for reference
                 'pre_converter': lambda x: round(x, 2)  # Ensure 2 decimal precision
             }
         )
@@ -358,6 +387,7 @@ class AmbiSensePositionPGainNumber(AmbiSenseNumberEntity):
             attribute_map={
                 'alt_keys': ['positionPGain'],
                 'service_param': 'position_p_gain',
+                'firmware_param': 'positionPGain',  # Added for reference
                 'pre_converter': lambda x: round(x, 2)  # Ensure 2 decimal precision
             }
         )
@@ -379,6 +409,7 @@ class AmbiSensePositionIGainNumber(AmbiSenseNumberEntity):
             attribute_map={
                 'alt_keys': ['positionIGain'],
                 'service_param': 'position_i_gain',
+                'firmware_param': 'positionIGain',  # Added for reference
                 'pre_converter': lambda x: round(x, 3)  # Ensure 3 decimal precision
             }
         )
