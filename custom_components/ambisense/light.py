@@ -46,7 +46,7 @@ class AmbiSenseLightEntity(CoordinatorEntity, LightEntity):
             name="AmbiSense",
             manufacturer="TechPosts Media",
             model="AmbiSense Radar-Controlled LED System",
-            sw_version="3.1",
+            sw_version="4.0.3",  # Updated to match firmware version
         )
 
     @property
