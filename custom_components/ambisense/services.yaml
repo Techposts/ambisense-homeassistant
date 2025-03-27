@@ -25,6 +25,7 @@ update_settings:
           min: 50
           max: 500
           unit_of_measurement: cm
+          
     background_mode:
       name: Background Mode
       description: Enable or disable background lighting
@@ -35,6 +36,7 @@ update_settings:
       name: Directional Light
       description: Enable or disable directional light effect
       selector:
+        boolean:
       
     brightness:
       name: Brightness
@@ -82,6 +84,12 @@ update_settings:
             - "Color Wave"
             - "Breathing"
             - "Solid"
+            - "Comet Trail"
+            - "Pulse Waves"
+            - "Fire Effect"
+            - "Theater Chase"
+            - "Dual Scan"
+            - "Motion Particles"
 
     center_shift:
       name: Center Shift
@@ -176,3 +184,11 @@ update_settings:
           min: 0
           max: 1
           step: 0.01
+
+apply_settings:
+  name: Apply Settings
+  description: Apply all current settings to the device
+  target:
+    entity:
+      domain: light
+      integration: ambisense
